@@ -256,7 +256,7 @@ def run_ai_generation(is_reroll=False):
                  for y in range(3):
                      for x in range(3):
                          for z in range(heights[y, x]):
-                             cubes[y, x, z] = True
+                             cubes[x, y, z] = True
                  ax.voxels(cubes, facecolors='white', edgecolors='black', shade=False)
                  ax.view_init(elev=30, azim=-45)
                  ax.set_box_aspect((1, 1, 1))
