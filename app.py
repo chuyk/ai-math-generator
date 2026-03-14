@@ -28,7 +28,6 @@ except OSError:
 # =======================================================
 # 狀態管理 (Session State - 雲端安全隔離機制)
 # =======================================================
-# 徹底移除 txt 檔案讀寫，改用 Session State 確保每個使用者的 API Key 獨立且網頁關閉即銷毀
 if "api_key" not in st.session_state:
     st.session_state.api_key = "" 
 if "current_question" not in st.session_state:
@@ -177,7 +176,6 @@ def run_ai_generation(is_reroll=False):
                - 存為 temp_diagram.png (bbox_inches='tight')。
             """
         elif question_type == "立體圖形三視圖 (積木堆疊)":
-            # 由 Python 端負責隨機挑選視角與陣列，強迫 AI 每次考不同的圖！
             target_view = random.choice(["前視圖", "上視圖", "右視圖"])
             h_matrix = f"[[{random.randint(0,3)}, {random.randint(0,3)}, {random.randint(0,2)}], " \
                        f"[{random.randint(0,3)}, {random.randint(1,3)}, {random.randint(0,3)}], " \
@@ -326,38 +324,24 @@ def run_ai_generation(is_reroll=False):
             
             if raw_code:
                 # 【絕對防禦：將所有可能用到的套件強制寫入執行的程式碼中】
-                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nimport urllib.request\nfrom matplotlib import font_manager\n"""
+                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\n"""
                 
-                # 【加入動態硬碟掃描與穩定 Github 下載機制 - 完美支援雲端 Linux 與本機】
+                # 【字型雲端無敵版】：強制掛載實體 ttf 檔案，完全繞過系統快取問題！
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
 plt.rcParams['axes.unicode_minus'] = False
 
 def setup_chinese_font():
-    font_url = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansTC/NotoSansTC-Regular.ttf'
+    # 優先強制掛載 GitHub 同資料夾下的實體字型檔 (解掉豆腐塊的關鍵！)
     font_path = 'NotoSansTC-Regular.ttf'
-    success = False
-    
-    if not os.path.exists(font_path):
-        try:
-            urllib.request.urlretrieve(font_url, font_path)
-            success = True
-        except:
-            pass
-    else:
-        success = True
+    if os.path.exists(font_path):
+        font_manager.fontManager.addfont(font_path)
+        plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_path).get_name()
+        return
 
-    if success:
-        try:
-            font_manager.fontManager.addfont(font_path)
-            plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_path).get_name()
-            return
-        except:
-            pass
-
-    # 若下載失敗，啟動動態硬碟掃描 (本機回退機制)
+    # 備用：若本機測試沒放字型檔，則自動去抓 Windows 內建的微軟正黑體
     sys_os = platform.system()
-    search_dirs = ['C:/Windows/Fonts'] if sys_os == 'Windows' else ['/System/Library/Fonts', '/Library/Fonts', os.path.expanduser('~/Library/Fonts')]
+    search_dirs = ['C:/Windows/Fonts'] if sys_os == 'Windows' else ['/System/Library/Fonts', '/Library/Fonts']
     target_files = ['msjh.ttc', 'msjh.ttf', 'pingfang.ttc']
     
     for d in search_dirs:
@@ -373,9 +357,6 @@ def setup_chinese_font():
                     except:
                         pass
                         
-    # 最終備案
-    plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei'] if sys_os == 'Windows' else ['PingFang TC', 'Noto Sans CJK TC']
-
 setup_chinese_font()
 """
                 
