@@ -138,6 +138,7 @@ def run_ai_generation(is_reroll=False):
     2. LaTeX 包覆：所有的數學符號、方程式，絕對必須用 $ 符號包覆起來，否則網頁無法渲染！
     3. 【考卷印刷視覺規範】：所有的繪圖絕對禁止使用灰色或彩色填滿！一律「純白底、純黑線」。
     4. 【⚠️ Markdown 刪除線防呆】：若要表示分數或數字範圍，【絕對使用全形波浪號「～」或連字號「-」】。
+    5. 【⚠️ 程式繪圖防呆】：請務必自行宣告畫布 (例如 fig, ax = plt.subplots())。但絕對不要在結尾寫 plt.savefig() 或 plt.show()，系統會自動接管存檔動作。
     """
 
     # 如果是三視圖，我們永遠強制重新用 Python 產生矩陣 (因為 LLM 換數字會破壞空間結構)
@@ -161,21 +162,18 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。
             2. "python_code": 
+               - 必須自行宣告 fig, ax = plt.subplots()
                - 使用 ax.set_aspect('equal') 與 ax.axis('off')。
                - 【⚠️ 直角記號絕對防呆】：必須照抄以下向量邏輯：
                  u = (A - D) / np.linalg.norm(A - D); v = (C - D) / np.linalg.norm(C - D)
                  p1 = D + 0.5 * u; p2 = p1 + 0.5 * v; p3 = D + 0.5 * v
                  ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
                - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
-               - 存為 temp_diagram.png (bbox_inches='tight')。
             """
         elif question_type == "立體圖形三視圖 (積木堆疊)":
-            # =================================================================
-            # 【阿凱老師專屬：Python 空間矩陣與三視圖選項精算引擎】
-            # =================================================================
             target_view = random.choice(["前視圖", "上視圖", "右視圖"])
             
-            # 1. 生成 3x3 隨機積木高度矩陣 (y為深度: 0前~2後, x為寬度: 0左~2右)
+            # 1. 生成 3x3 隨機積木高度矩陣
             heights_arr = np.zeros((3, 3), dtype=int)
             for _y in range(3):
                 for _x in range(3):
@@ -188,16 +186,13 @@ def run_ai_generation(is_reroll=False):
             def get_view_string(matrix, v_type):
                 res = []
                 if v_type == "上視圖":
-                    # 上視圖：由上往下看。繪圖時上面是後方(y=2)，下面是前方(y=0)
                     for _y in [2, 1, 0]:
                         res.append("".join(["⬛" if matrix[_y, _x] > 0 else "⬜" for _x in range(3)]))
                 elif v_type == "前視圖":
-                    # 前視圖：看 x 軸(寬度)。每一直排的最大高度。
                     h = [max(matrix[:, _x]) for _x in range(3)]
-                    for _z in [2, 1, 0]: # 由高往下印
+                    for _z in [2, 1, 0]:
                         res.append("".join(["⬛" if h[_x] > _z else "⬜" for _x in range(3)]))
                 elif v_type == "右視圖":
-                    # 右視圖：看 y 軸(深度)。右視圖的「左」是物體的前方(y=0)，「右」是物體的後方(y=2)
                     h = [max(matrix[_y, :]) for _y in range(3)]
                     for _z in [2, 1, 0]:
                         res.append("".join(["⬛" if h[_y] > _z else "⬜" for _y in range(3)]))
@@ -206,7 +201,7 @@ def run_ai_generation(is_reroll=False):
             # 3. 取得絕對正確的答案字串
             correct_ans_str = get_view_string(heights_arr, target_view)
             
-            # 4. 產生 3 個符合重力的干擾選項 (透過旋轉、鏡射或隨機修改矩陣)
+            # 4. 產生 3 個符合重力的干擾選項
             options_list = [correct_ans_str]
             attempts = 0
             while len(options_list) < 4 and attempts < 100:
@@ -221,16 +216,15 @@ def run_ai_generation(is_reroll=False):
                     mod_m[random.randint(0, 2), random.randint(0, 2)] = random.randint(0, 3)
                 
                 dist_str = get_view_string(mod_m, target_view)
-                # 確保選項不重複，且不是全空的白圖
                 if dist_str not in options_list and "⬛" in dist_str:
                     options_list.append(dist_str)
                     
-            while len(options_list) < 4: # 極端防呆
+            while len(options_list) < 4:
                 options_list.append("<br>⬜⬜⬜<br>⬜⬛⬜<br>⬜⬜⬜")
 
             random.shuffle(options_list)
             correct_idx = options_list.index(correct_ans_str)
-            ans_letter = chr(65 + correct_idx) # 將 index 轉為 A, B, C, D
+            ans_letter = chr(65 + correct_idx)
             h_matrix_str = repr(heights_arr.tolist())
 
             prompt = f"""
@@ -251,6 +245,7 @@ def run_ai_generation(is_reroll=False):
             1. "question_text": 包含上述題目、四個選項與解析。
             2. "python_code": 
                - 【絕對照抄】以下陣列與繪圖程式碼 (此座標已完美對應前視與右視方向)：
+                 fig, ax = plt.subplots(subplot_kw={{'projection': '3d'}})
                  heights = np.array({h_matrix_str})
                  cubes = np.zeros((3, 3, 3), dtype=bool)
                  for y in range(3):
@@ -261,7 +256,6 @@ def run_ai_generation(is_reroll=False):
                  ax.view_init(elev=30, azim=-45)
                  ax.set_box_aspect((1, 1, 1))
                  ax.axis('off')
-               - 存為 temp_diagram.png (bbox_inches='tight')。
             """
             
         elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
@@ -270,7 +264,7 @@ def run_ai_generation(is_reroll=False):
             {base_rules}
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。
-            2. "python_code": 繪製該圖形的展開圖。
+            2. "python_code": 繪製該圖形的展開圖。必須自行宣告 fig, ax = plt.subplots()。
                - 角柱請照抄以下演算法(以 N角柱為例)：
                  N = 5
                  a = 2; h = 5
@@ -283,7 +277,6 @@ def run_ai_generation(is_reroll=False):
                  ax.add_patch(Wedge((0,0), L, 90 - theta/2, 90 + theta/2, fc='white', ec='black', lw=1.5))
                  ax.add_patch(Circle((0, L + r), r, fc='white', ec='black', lw=1.5))
                - 使用 ax.set_aspect('equal') 與 ax.axis('off')。
-               - 存為 temp_diagram.png (bbox_inches='tight')。
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
             prompt = f"""
@@ -291,10 +284,9 @@ def run_ai_generation(is_reroll=False):
             {base_rules}
             請回傳 JSON：
             1. "question_text": 包含題目、選項與解析。
-            2. "python_code": 
+            2. "python_code": 必須自行宣告 fig, ax = plt.subplots()。
                - 圖表的標題、X軸標籤、Y軸標籤、圖例，全部必須使用繁體中文。
                - 直方圖長條必須緊密相連 (width=組距)。
-               - 存為 temp_diagram.png (bbox_inches='tight')。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
             prompt = f"""
@@ -302,7 +294,7 @@ def run_ai_generation(is_reroll=False):
             {base_rules}
             請回傳 JSON：
             1. "question_text": 題目明確問：「求此不等式的解為何？」選項必須是純文字數學範圍（如 (A) $x > 3$）。
-            2. "python_code": 
+            2. "python_code": 必須自行宣告 fig, ax = plt.subplots(figsize=(6, 2))。
                - 【⚠️ 完美單一數線防呆】：
                  ax.spines['top'].set_visible(False)
                  ax.spines['right'].set_visible(False)
@@ -316,7 +308,6 @@ def run_ai_generation(is_reroll=False):
                  ax.plot(ans, 0, marker='o', markersize=8, markerfacecolor='black', markeredgecolor='black', zorder=5)
                  ax.set_ylim(-0.5, 1)
                  ax.margins(0.15)
-               - 存為 temp_diagram.png (bbox_inches='tight')。
             """
         elif question_type == "純文字計算題 (無插圖)":
             prompt = f"""
@@ -393,8 +384,16 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 """
+                # 【防呆機制】：統一由我們在結尾存檔並釋放畫布，確保不會 OOM (Out Of Memory)
+                cleanup_code = """
+# ====== 系統自動存檔與記憶體釋放接管 ======
+try:
+    plt.savefig('temp_diagram.png', bbox_inches='tight', dpi=300)
+finally:
+    plt.close('all')
+"""
                 
-                raw_code = injected_imports + font_setup + raw_code
+                raw_code = injected_imports + font_setup + raw_code + cleanup_code
                 
             st.session_state.current_code = raw_code
             st.session_state.has_image = False 
