@@ -109,21 +109,17 @@ topic = ""
 if question_type == "一般幾何 (平面/複合圖形)":
     topic = st.text_input("💡 請輸入出題單元：", value="直角三角形斜邊上的高")
 elif question_type == "立體圖形三視圖 (積木堆疊)":
-    st.info("💡 系統已注入隨機空間陣列引擎，並強制關閉渲染陰影(shade=False)，確保印刷純黑白！")
+    st.info("💡 系統已全面改用 Python 幾何引擎！強迫 AI 照抄精算後的四個 3D 視圖選項，100% 符合數學課本規範。")
 elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
     topic = st.text_input("💡 請輸入要測驗的展開圖圖形：", value="五角柱的展開圖與表面積")
-    st.info("💡 系統已注入絕對三角函數公式，圓錐底圓強制接於弧線，角柱保證完美共邊相黏。")
 elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
     topic = st.text_input("💡 請輸入圖表主題與資料情境：", value="某班學生數學成績直方圖")
-    st.info("💡 系統將確保圖表全繁體中文，直方圖連續無空隙。")
 elif question_type == "一元一次不等式圖解 (數線)":
     topic = st.text_input("💡 請輸入不等式主題：", value="解一元一次不等式並在數線上圖示")
-    st.info("💡 系統已鎖定標準格式：單一數線、無多餘橫線，實/空心圓並以垂直線連接水平範圍箭頭。")
 elif question_type == "純文字計算題 (無插圖)":
     topic = st.text_input("💡 請輸入代數或計算主題：", value="一元一次方程式的應用")
 elif question_type == "會考非選素養題 (情境+兩小題)":
     topic = st.text_input("💡 請輸入生活情境主題：", value="線性函數與電信資費方案比較")
-    st.info("💡 已全面載入阿凱老師的「神級會考非選素養模板」，保證不預設變數、時事導向。")
 
 st.markdown("### 🚀 第二步：生成或修改考題")
 
@@ -141,10 +137,11 @@ def run_ai_generation(is_reroll=False):
     1. JSON 跳脫：所有的 LaTeX 語法反斜線「必須雙重跳脫」！例如：\\\\triangle。
     2. LaTeX 包覆：所有的數學符號、方程式，絕對必須用 $ 符號包覆起來，否則網頁無法渲染！
     3. 【考卷印刷視覺規範】：所有的繪圖絕對禁止使用灰色或彩色填滿！一律「純白底、純黑線」。
-    4. 【⚠️ Markdown 刪除線防呆】：若要表示分數或數字範圍，【絕對使用全形波浪號「～」或連字號「-」】（例如 50～60 或 50-60），嚴禁使用半形波浪號「~」，否則會觸發 Markdown 刪除線導致排版大亂！
+    4. 【⚠️ Markdown 刪除線防呆】：若要表示分數或數字範圍，【絕對使用全形波浪號「～」或連字號「-」】。
     """
 
-    if is_reroll:
+    # 如果是三視圖，我們永遠強制重新用 Python 產生矩陣 (因為 LLM 換數字會破壞空間結構)
+    if is_reroll and question_type != "立體圖形三視圖 (積木堆疊)":
         if not st.session_state.current_question:
             st.warning("請先生成一道題目，才能使用換數字功能！")
             return
@@ -169,39 +166,104 @@ def run_ai_generation(is_reroll=False):
                  u = (A - D) / np.linalg.norm(A - D); v = (C - D) / np.linalg.norm(C - D)
                  p1 = D + 0.5 * u; p2 = p1 + 0.5 * v; p3 = D + 0.5 * v
                  ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
-               - 【⚠️ 圖片裁切防禦機制】：繪圖最後，請「絕對」加上以下三行，強迫系統重新計算邊界並留白，防止圓弧或圖形被卡斷：
-                 ax.relim()
-                 ax.autoscale_view()
-                 ax.margins(0.15)
+               - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
                - 存為 temp_diagram.png (bbox_inches='tight')。
             """
         elif question_type == "立體圖形三視圖 (積木堆疊)":
+            # =================================================================
+            # 【阿凱老師專屬：Python 空間矩陣與三視圖選項精算引擎】
+            # =================================================================
             target_view = random.choice(["前視圖", "上視圖", "右視圖"])
-            h_matrix = f"[[{random.randint(0,3)}, {random.randint(0,3)}, {random.randint(0,2)}], " \
-                       f"[{random.randint(0,3)}, {random.randint(1,3)}, {random.randint(0,3)}], " \
-                       f"[{random.randint(0,2)}, {random.randint(0,3)}, {random.randint(0,2)}]]"
             
+            # 1. 生成 3x3 隨機積木高度矩陣 (y為深度: 0前~2後, x為寬度: 0左~2右)
+            heights_arr = np.zeros((3, 3), dtype=int)
+            for _y in range(3):
+                for _x in range(3):
+                    heights_arr[_y, _x] = random.randint(0, 3)
+            # 強制確保圖形有變化，且一定有積木
+            heights_arr[1, 1] = random.randint(1, 3)
+            heights_arr[0, random.randint(0, 2)] = random.randint(1, 2)
+            
+            # 2. 定義符合數學課本規範的視圖產生器
+            def get_view_string(matrix, v_type):
+                res = []
+                if v_type == "上視圖":
+                    # 上視圖：由上往下看。繪圖時上面是後方(y=2)，下面是前方(y=0)
+                    for _y in [2, 1, 0]:
+                        res.append("".join(["⬛" if matrix[_y, _x] > 0 else "⬜" for _x in range(3)]))
+                elif v_type == "前視圖":
+                    # 前視圖：看 x 軸(寬度)。每一直排的最大高度。
+                    h = [max(matrix[:, _x]) for _x in range(3)]
+                    for _z in [2, 1, 0]: # 由高往下印
+                        res.append("".join(["⬛" if h[_x] > _z else "⬜" for _x in range(3)]))
+                elif v_type == "右視圖":
+                    # 右視圖：看 y 軸(深度)。右視圖的「左」是物體的前方(y=0)，「右」是物體的後方(y=2)
+                    h = [max(matrix[_y, :]) for _y in range(3)]
+                    for _z in [2, 1, 0]:
+                        res.append("".join(["⬛" if h[_y] > _z else "⬜" for _y in range(3)]))
+                return "<br>".join(res)
+            
+            # 3. 取得絕對正確的答案字串
+            correct_ans_str = get_view_string(heights_arr, target_view)
+            
+            # 4. 產生 3 個符合重力的干擾選項 (透過旋轉、鏡射或隨機修改矩陣)
+            options_list = [correct_ans_str]
+            attempts = 0
+            while len(options_list) < 4 and attempts < 100:
+                attempts += 1
+                mod_m = heights_arr.copy()
+                action = random.choice(['rot', 'flip', 'mod'])
+                if action == 'rot':
+                    mod_m = np.rot90(mod_m, k=random.randint(1, 3))
+                elif action == 'flip':
+                    mod_m = np.fliplr(mod_m) if random.choice([True, False]) else np.flipud(mod_m)
+                else:
+                    mod_m[random.randint(0, 2), random.randint(0, 2)] = random.randint(0, 3)
+                
+                dist_str = get_view_string(mod_m, target_view)
+                # 確保選項不重複，且不是全空的白圖
+                if dist_str not in options_list and "⬛" in dist_str:
+                    options_list.append(dist_str)
+                    
+            while len(options_list) < 4: # 極端防呆
+                options_list.append("<br>⬜⬜⬜<br>⬜⬛⬜<br>⬜⬜⬜")
+
+            random.shuffle(options_list)
+            correct_idx = options_list.index(correct_ans_str)
+            ans_letter = chr(65 + correct_idx) # 將 index 轉為 A, B, C, D
+            h_matrix_str = repr(heights_arr.tolist())
+
             prompt = f"""
-            請生成一道【{difficulty}】難度的「立體積木三視圖」選擇題。
+            你是一位專業的國中數學老師。請生成一道【{difficulty}】難度的「立體積木三視圖」選擇題。
             {base_rules}
+            
+            【⚠️ 絕對防呆指示：請完全照抄我為你算好的選項，不准自己發揮！】
+            - 測驗目標：【{target_view}】
+            - 題目必須是：「如圖為正方體堆疊的立體圖形，請判斷其【{target_view}】為何？」
+            - 【重要】請將以下四個選項「一字不漏」地放進你的 JSON 選項中：
+              (A)<br>{options_list[0]}
+              (B)<br>{options_list[1]}
+              (C)<br>{options_list[2]}
+              (D)<br>{options_list[3]}
+            - 【重要】解析請明確指出正確答案為 ({ans_letter})。
+
             請回傳 JSON：
-            1. "question_text": 
-               - 題目指定測驗：【{target_view}】！
-               - 題目問：「如圖為正方體堆疊的立體圖形，請判斷其【{target_view}】為何？」
-               - 【⚠️ AI 空間推算防呆】：請務必根據我提供的 heights 陣列，精準推算出正確的 {target_view} 畫面，並確保它存在於選項中！
-               - 【⚠️ 選項排版絕對防呆】：四個選項必須是完美的 3x3 矩陣。請「絕對」使用全形 ⬛ 與 ⬜。每一列結束務必加上 `<br>`。例如："(A)<br>⬜⬜⬜<br>⬜⬛⬜<br>⬛⬛⬛"
+            1. "question_text": 包含上述題目、四個選項與解析。
             2. "python_code": 
-               - 【⚠️ 答案同步與重力防呆】：絕對不可以使用 np.random！請完全照抄以下我給你的陣列（這是我給你的新題目數據）：
-                 heights = np.array({h_matrix})
+               - 【絕對照抄】以下陣列與繪圖程式碼 (此座標已完美對應前視與右視方向)：
+                 heights = np.array({h_matrix_str})
                  cubes = np.zeros((3, 3, 3), dtype=bool)
-                 for x in range(3):
-                     for y in range(3):
-                         for z in range(heights[x, y]):
+                 for y in range(3):
+                     for x in range(3):
+                         for z in range(heights[y, x]):
                              cubes[x, y, z] = True
-               - 【⚠️ 正方體鎖定與純黑白防呆】：繪圖時「必須」加上這行：`ax.set_box_aspect((1, 1, 1))`
-               - 積木必須是純白底黑線，絕對不可有灰階陰影！請絕對照抄這行畫積木：`ax.voxels(cubes, facecolors='white', edgecolors='black', shade=False)`
-               - 使用 ax.view_init(elev=30, azim=-45)。隱藏座標軸。存為 temp_diagram.png (bbox_inches='tight')。
+                 ax.voxels(cubes, facecolors='white', edgecolors='black', shade=False)
+                 ax.view_init(elev=30, azim=-45)
+                 ax.set_box_aspect((1, 1, 1))
+                 ax.axis('off')
+               - 存為 temp_diagram.png (bbox_inches='tight')。
             """
+            
         elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
             prompt = f"""
             你是一位專業的國中數學老師。請根據主題：【{topic}】，生成一道【{difficulty}】難度的「立體圖形展開圖」幾何題。
@@ -209,22 +271,18 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。
             2. "python_code": 繪製該圖形的展開圖。
-               - 【⚠️ 角柱展開圖防呆演算法】：AI你不會算旋轉，請【絕對照抄】這段演算法畫角柱，它保證多邊形 100% 完美貼合矩形邊緣(以 N角柱為例)：
-                 N = 5 # 依照題目多邊形邊數修改(如3,4,5,6)
+               - 角柱請照抄以下演算法(以 N角柱為例)：
+                 N = 5
                  a = 2; h = 5
                  for i in range(N): ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
                  R = a / (2 * np.sin(np.pi/N)); apothem = a / (2 * np.tan(np.pi/N))
-                 # 下底 (完美貼合)
                  ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
-                 # 上底 (完美翻轉 180 度貼合)
                  ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
-               - 【⚠️ 圓錐防呆】：底圓必須接在「弧線」正上方！請絕對照抄這段程式：
+               - 圓錐防呆：
                  L = 10; r = 3; theta = 360 * (r / L)
-                 # 扇形開口朝上 (弧線在上方)
                  ax.add_patch(Wedge((0,0), L, 90 - theta/2, 90 + theta/2, fc='white', ec='black', lw=1.5))
-                 # 圓接在上方弧線的頂點
                  ax.add_patch(Circle((0, L + r), r, fc='white', ec='black', lw=1.5))
-               - 使用 ax.set_aspect('equal') 與 ax.axis('off')。務必使用 ax.set_xlim 與 ax.set_ylim 包含全圖。
+               - 使用 ax.set_aspect('equal') 與 ax.axis('off')。
                - 存為 temp_diagram.png (bbox_inches='tight')。
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
@@ -234,8 +292,8 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 包含題目、選項與解析。
             2. "python_code": 
-               - 【⚠️ 繁體中文防呆】：圖表的標題、X軸標籤、Y軸標籤、圖例，全部必須使用繁體中文。
-               - 圖表背景強制全白，不可有灰階填色。直方圖長條必須緊密相連 (width=組距)。
+               - 圖表的標題、X軸標籤、Y軸標籤、圖例，全部必須使用繁體中文。
+               - 直方圖長條必須緊密相連 (width=組距)。
                - 存為 temp_diagram.png (bbox_inches='tight')。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
@@ -243,26 +301,20 @@ def run_ai_generation(is_reroll=False):
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
-            1. "question_text": 
-               - 系統只配一張正確的圖作為解析，題目【絕對不可以】問「請選出正確的圖解」。
-               - 題目明確問：「求此不等式的解為何？」
-               - 四個選項必須是純文字的數學範圍（如 (A) $x > 3$）。數學式必須加上 $ 包覆。範圍隨機向右或向左。
+            1. "question_text": 題目明確問：「求此不等式的解為何？」選項必須是純文字數學範圍（如 (A) $x > 3$）。
             2. "python_code": 
-               - 【⚠️ 完美單一數線防呆】：請絕對照抄以下畫法，不准用 ax.axhline，直接利用 spines 作為唯一數線：
+               - 【⚠️ 完美單一數線防呆】：
                  ax.spines['top'].set_visible(False)
                  ax.spines['right'].set_visible(False)
                  ax.spines['left'].set_visible(False)
                  ax.spines['bottom'].set_position('zero')
                  ax.get_yaxis().set_visible(False)
-                 # 【⚠️ 警告系統：不准亂縮放！強迫顯示完整的左右範圍！】
                  ax.set_xlim(ans - 6, ans + 6)
                  ax.set_xticks(np.arange(ans-5, ans+6, 1))
-                 ax.plot([ans, ans], [0, 0.5], 'k-', lw=1.5) # 垂直線
-                 # 若向右 x_end = ans + 4；若向左 x_end = ans - 4
+                 ax.plot([ans, ans], [0, 0.5], 'k-', lw=1.5)
                  ax.annotate('', xy=(x_end, 0.5), xytext=(ans, 0.5), arrowprops=dict(arrowstyle='->', lw=1.5))
-                 ax.plot(ans, 0, marker='o', markersize=8, markerfacecolor='black', markeredgecolor='black', zorder=5) # 實心fc='black', 空心fc='white'
+                 ax.plot(ans, 0, marker='o', markersize=8, markerfacecolor='black', markeredgecolor='black', zorder=5)
                  ax.set_ylim(-0.5, 1)
-                 # 【⚠️ 圖片裁切防禦】：強制留白，確保箭頭不被切掉
                  ax.margins(0.15)
                - 存為 temp_diagram.png (bbox_inches='tight')。
             """
@@ -276,23 +328,10 @@ def run_ai_generation(is_reroll=False):
             """
         elif question_type == "會考非選素養題 (情境+兩小題)":
             prompt = f"""
-            任務說明：你是專業的台灣國中教育會考數學科出題老師，請根據指定的概念【{topic}】，設計一道符合教育會考風格的非選擇題。
+            任務說明：請根據指定的概念【{topic}】，設計一道符合台灣國中教育會考風格的非選擇題。
             {base_rules}
-
-            出題核心特徵：
-            1. 情境設計原則：完整生活場景鋪陳(5行以上的文字描述)，建立完整故事背景。融入當前熱門時事科技趨勢。自然融入數學，素養導向。語句自然流暢像講故事。
-            2. 題目結構：固定兩小題設計。
-               - 第一小題：考核心概念理解，避免直接問法(如直接問邊長)，可以問周長/關係等一步推理。答案必須是整數。
-               - 第二小題：具有挑戰性的應用題，需3-4個步驟思考，不超出國中範圍，考驗綜合分析能力。
-            3. 解題自由度設計：絕對不預設變數(不寫「設x為...」「設y為...」)，不直接提示解法(不說請列不等式)，問法間接(如問「最多幾個」)，開放多元解法。
-            4. 語言風格要求：用語台灣在地化，符合台灣國中生的認知程度。
-
             請嚴格回傳 JSON 格式：
-            1. "question_text": 
-               必須包含以下三個 Markdown 標題段落：
-               ### 題目情境與問題 (包含完整情境與兩小題)
-               ### 自我檢核清單 (列出你的檢查項目並打勾)
-               ### 簡要解答與評分指引 (提供 0~3 分的給分標準)
+            1. "question_text": 包含 Markdown 標題段落：### 題目情境與問題、### 自我檢核清單、### 簡要解答與評分指引。
             2. "python_code": 回傳空字串 ""。
             """
 
@@ -304,7 +343,6 @@ def run_ai_generation(is_reroll=False):
                 config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
             )
             
-            # 【避開 Markdown 截斷 Bug，使用 chr(96) 組合字串】
             triple_backticks = chr(96) * 3
             regex_pattern = triple_backticks + r"(?:json)?\s*(\{.*?\})\s*" + triple_backticks
             match = re.search(regex_pattern, response.text, re.DOTALL | re.IGNORECASE)
@@ -323,23 +361,19 @@ def run_ai_generation(is_reroll=False):
             raw_code = data.get('python_code', '').strip()
             
             if raw_code:
-                # 【絕對防禦：將所有可能用到的套件強制寫入執行的程式碼中】
                 injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\n"""
                 
-                # 【字型雲端無敵版】：強制掛載實體 ttf 檔案，完全繞過系統快取問題！
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
 plt.rcParams['axes.unicode_minus'] = False
 
 def setup_chinese_font():
-    # 優先強制掛載 GitHub 同資料夾下的實體字型檔 (解掉豆腐塊的關鍵！)
     font_path = 'NotoSansTC-Regular.ttf'
     if os.path.exists(font_path):
         font_manager.fontManager.addfont(font_path)
         plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_path).get_name()
         return
 
-    # 備用：若本機測試沒放字型檔，則自動去抓 Windows 內建的微軟正黑體
     sys_os = platform.system()
     search_dirs = ['C:/Windows/Fonts'] if sys_os == 'Windows' else ['/System/Library/Fonts', '/Library/Fonts']
     target_files = ['msjh.ttc', 'msjh.ttf', 'pingfang.ttc']
@@ -370,7 +404,6 @@ setup_chinese_font()
                     os.remove('temp_diagram.png')
                 
                 try:
-                    # 執行安全的隔離空間
                     exec(st.session_state.current_code, globals())
                     if os.path.exists('temp_diagram.png') and os.path.getsize('temp_diagram.png') > 0:
                         st.session_state.has_image = True
