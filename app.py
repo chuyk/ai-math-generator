@@ -281,21 +281,18 @@ def run_ai_generation(is_reroll=False):
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
-            1. "question_text": 題目明確問：「求此不等式的解為何？」選項必須是純文字數學範圍（如 (A) $x > 3$）。
-            2. "python_code": 必須自行宣告 fig, ax = plt.subplots(figsize=(6, 2))。
-               - 【⚠️ 完美單一數線防呆】：
-                 ax.spines['top'].set_visible(False)
-                 ax.spines['right'].set_visible(False)
-                 ax.spines['left'].set_visible(False)
-                 ax.spines['bottom'].set_position('zero')
-                 ax.get_yaxis().set_visible(False)
-                 ax.set_xlim(ans - 6, ans + 6)
-                 ax.set_xticks(np.arange(ans-5, ans+6, 1))
-                 ax.plot([ans, ans], [0, 0.5], 'k-', lw=1.5)
-                 ax.annotate('', xy=(x_end, 0.5), xytext=(ans, 0.5), arrowprops=dict(arrowstyle='->', lw=1.5))
-                 ax.plot(ans, 0, marker='o', markersize=8, markerfacecolor='black', markeredgecolor='black', zorder=5)
-                 ax.set_ylim(-0.5, 1)
-                 ax.margins(0.15)
+            1. "question_text": 
+               - 題目明確問：「求此不等式的解為何？」
+               - 【⚠️ 重大更新】：題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
+               - 選項必須是純文字數學範圍（如 (A) $x > 3$ 或 (B) $-2 < x \\le 4$）。
+            2. "python_code": 
+               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。
+               - 單向不等式範例 (x > 3)：
+                 `draw_number_line(ax, ans_start=3, ans_end=None, direction='right', is_solid_start=False)`
+               - 單向不等式範例 (x <= -1)：
+                 `draw_number_line(ax, ans_start=-1, ans_end=None, direction='left', is_solid_start=True)`
+               - 封閉範圍範例 (-2 < x <= 4)：
+                 `draw_number_line(ax, ans_start=-2, ans_end=4, is_solid_start=False, is_solid_end=True)`
             """
         elif question_type == "純文字計算題 (無插圖)":
             prompt = f"""
