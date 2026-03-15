@@ -116,6 +116,7 @@ elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
     topic = st.text_input("💡 請輸入圖表主題與資料情境：", value="某班學生數學成績直方圖")
 elif question_type == "一元一次不等式圖解 (數線)":
     topic = st.text_input("💡 請輸入不等式主題：", value="解一元一次不等式並在數線上圖示")
+    st.info("💡 系統已升級：支援單向與封閉範圍不等式！並封鎖 AI 繪圖權限，保證懸浮線條 100% 穩定。")
 elif question_type == "純文字計算題 (無插圖)":
     topic = st.text_input("💡 請輸入代數或計算主題：", value="一元一次方程式的應用")
 elif question_type == "會考非選素養題 (情境+兩小題)":
@@ -141,7 +142,6 @@ def run_ai_generation(is_reroll=False):
     5. 【⚠️ 程式繪圖防呆】：請務必自行宣告畫布 (例如 fig, ax = plt.subplots())。但絕對不要在結尾寫 plt.savefig() 或 plt.show()，系統會自動接管存檔動作。
     """
 
-    # 如果是三視圖，我們永遠強制重新用 Python 產生矩陣 (因為 LLM 換數字會破壞空間結構)
     if is_reroll and question_type != "立體圖形三視圖 (積木堆疊)":
         if not st.session_state.current_question:
             st.warning("請先生成一道題目，才能使用換數字功能！")
@@ -173,16 +173,13 @@ def run_ai_generation(is_reroll=False):
         elif question_type == "立體圖形三視圖 (積木堆疊)":
             target_view = random.choice(["前視圖", "上視圖", "右視圖"])
             
-            # 1. 生成 3x3 隨機積木高度矩陣
             heights_arr = np.zeros((3, 3), dtype=int)
             for _y in range(3):
                 for _x in range(3):
                     heights_arr[_y, _x] = random.randint(0, 3)
-            # 強制確保圖形有變化，且一定有積木
             heights_arr[1, 1] = random.randint(1, 3)
             heights_arr[0, random.randint(0, 2)] = random.randint(1, 2)
             
-            # 2. 定義符合數學課本規範的視圖產生器
             def get_view_string(matrix, v_type):
                 res = []
                 if v_type == "上視圖":
@@ -198,10 +195,8 @@ def run_ai_generation(is_reroll=False):
                         res.append("".join(["⬛" if h[_y] > _z else "⬜" for _y in range(3)]))
                 return "<br>".join(res)
             
-            # 3. 取得絕對正確的答案字串
             correct_ans_str = get_view_string(heights_arr, target_view)
             
-            # 4. 產生 3 個符合重力的干擾選項
             options_list = [correct_ans_str]
             attempts = 0
             while len(options_list) < 4 and attempts < 100:
@@ -293,21 +288,18 @@ def run_ai_generation(is_reroll=False):
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
-            1. "question_text": 題目明確問：「求此不等式的解為何？」選項必須是純文字數學範圍（如 (A) $x > 3$）。
-            2. "python_code": 必須自行宣告 fig, ax = plt.subplots(figsize=(6, 2))。
-               - 【⚠️ 完美單一數線防呆】：
-                 ax.spines['top'].set_visible(False)
-                 ax.spines['right'].set_visible(False)
-                 ax.spines['left'].set_visible(False)
-                 ax.spines['bottom'].set_position('zero')
-                 ax.get_yaxis().set_visible(False)
-                 ax.set_xlim(ans - 6, ans + 6)
-                 ax.set_xticks(np.arange(ans-5, ans+6, 1))
-                 ax.plot([ans, ans], [0, 0.5], 'k-', lw=1.5)
-                 ax.annotate('', xy=(x_end, 0.5), xytext=(ans, 0.5), arrowprops=dict(arrowstyle='->', lw=1.5))
-                 ax.plot(ans, 0, marker='o', markersize=8, markerfacecolor='black', markeredgecolor='black', zorder=5)
-                 ax.set_ylim(-0.5, 1)
-                 ax.margins(0.15)
+            1. "question_text": 
+               - 題目明確問：「求此不等式的解為何？」
+               - 【⚠️ 重大更新】：題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
+               - 選項必須是純文字數學範圍（如 (A) $x > 3$ 或 (B) $-2 < x \\le 4$）。
+            2. "python_code": 
+               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。
+               - 單向不等式範例 (x > 3)：
+                 `draw_number_line(ax, ans_start=3, ans_end=None, direction='right', is_solid_start=False)`
+               - 單向不等式範例 (x <= -1)：
+                 `draw_number_line(ax, ans_start=-1, ans_end=None, direction='left', is_solid_start=True)`
+               - 封閉範圍範例 (-2 < x <= 4)：
+                 `draw_number_line(ax, ans_start=-2, ans_end=4, is_solid_start=False, is_solid_end=True)`
             """
         elif question_type == "純文字計算題 (無插圖)":
             prompt = f"""
@@ -383,8 +375,88 @@ def setup_chinese_font():
                         pass
                         
 setup_chinese_font()
+
+def draw_prism(ax, N, a, h):
+    for i in range(N): 
+        ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
+    R = a / (2 * np.sin(np.pi/N))
+    apothem = a / (2 * np.tan(np.pi/N))
+    ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
+    ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.autoscale_view()
+
+def draw_cone(ax, L, r):
+    theta = 360 * (r / L)
+    ax.add_patch(Wedge((0, L), L, 270 - theta/2, 270 + theta/2, fc='white', ec='black', lw=1.5))
+    ax.add_patch(Circle((0, -r), r, fc='white', ec='black', lw=1.5))
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.autoscale_view()
+
+def draw_voxels(ax, heights):
+    heights = np.array(heights)
+    cubes = np.zeros((3, 3, 3), dtype=bool)
+    for y in range(3):
+        for x in range(3):
+            for z in range(heights[y, x]):
+                cubes[x, y, z] = True
+    ax.voxels(cubes, facecolors='#FFFFFF', edgecolors='black', shade=False)
+    ax.set(xlim=(0, 3), ylim=(0, 3), zlim=(0, 3))
+    ax.set_box_aspect((1, 1, 1))
+    ax.view_init(elev=30, azim=-45)
+    ax.axis('off')
+
+def draw_right_angle(ax, A, D, C, size=0.5):
+    A, D, C = np.array(A), np.array(D), np.array(C)
+    u = (A - D) / np.linalg.norm(A - D)
+    v = (C - D) / np.linalg.norm(C - D)
+    p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
+    ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
+
+# 【⚠️ 全新完美數線函數】：支援單向與封閉範圍，徹底解決不穩定與貼齊軸線問題
+def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_position('zero')
+    ax.get_yaxis().set_visible(False)
+    
+    if ans_end is not None:
+        min_val = min(ans_start, ans_end) - 3
+        max_val = max(ans_start, ans_end) + 3
+    else:
+        min_val = ans_start - 6
+        max_val = ans_start + 6
+        
+    ax.set_xlim(min_val, max_val)
+    ax.set_xticks(np.arange(min_val + 1, max_val, 1))
+    
+    y_h = 0.5
+    if ans_end is None:
+        ax.plot([ans_start, ans_start], [0, y_h], 'k-', lw=1.5)
+        x_end = ans_start + 4 if direction == 'right' else ans_start - 4
+        ax.annotate('', xy=(x_end, y_h), xytext=(ans_start, y_h), arrowprops=dict(arrowstyle='->', lw=1.5))
+        fc = 'black' if is_solid_start else 'white'
+        ax.plot(ans_start, 0, marker='o', markersize=8, markerfacecolor=fc, markeredgecolor='black', zorder=5)
+    else:
+        left_val, right_val = min(ans_start, ans_end), max(ans_start, ans_end)
+        left_solid = is_solid_start if left_val == ans_start else is_solid_end
+        right_solid = is_solid_end if right_val == ans_end else is_solid_start
+        
+        ax.plot([left_val, left_val], [0, y_h], 'k-', lw=1.5)
+        ax.plot([right_val, right_val], [0, y_h], 'k-', lw=1.5)
+        ax.plot([left_val, right_val], [y_h, y_h], 'k-', lw=1.5)
+        
+        fc_left = 'black' if left_solid else 'white'
+        fc_right = 'black' if right_solid else 'white'
+        ax.plot(left_val, 0, marker='o', markersize=8, markerfacecolor=fc_left, markeredgecolor='black', zorder=5)
+        ax.plot(right_val, 0, marker='o', markersize=8, markerfacecolor=fc_right, markeredgecolor='black', zorder=5)
+        
+    ax.set_ylim(-0.5, 1)
+    ax.margins(0.15)
 """
-                # 【防呆機制】：統一由我們在結尾存檔並釋放畫布，確保不會 OOM (Out Of Memory)
                 cleanup_code = """
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
