@@ -112,7 +112,6 @@ elif question_type == "立體圖形三視圖 (積木堆疊)":
     st.info("💡 系統已全面改用 Python 幾何引擎！強迫 AI 照抄精算後的四個 3D 視圖選項，100% 符合數學課本規範。")
 elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
     topic = st.text_input("💡 請輸入要測驗的展開圖圖形：", value="五角柱的展開圖與表面積")
-    st.info("💡 系統已修正防呆機制：強制 AI 使用底層數學引擎繪圖，確保圓錐 100% 完美相切不分離。")
 elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
     topic = st.text_input("💡 請輸入圖表主題與資料情境：", value="某班學生數學成績直方圖")
 elif question_type == "一元一次不等式圖解 (數線)":
@@ -260,12 +259,18 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。
             2. "python_code": 繪製該圖形的展開圖。必須自行宣告 fig, ax = plt.subplots()。
-               - 【⚠️ 絕對禁令】：你不准自己算幾何座標或寫 add_patch！請直接呼叫底層內建的防呆函數：
-               - 若為角柱，呼叫 `draw_prism(ax, N, a, h)` (N為邊數, a為底邊長, h為柱高)。
-               - 若為圓錐，呼叫 `draw_cone(ax, L, r)` (L為母線長, r為底圓半徑)。
-               - 程式碼範例：
-                 fig, ax = plt.subplots()
-                 draw_cone(ax, L=10, r=3)
+               - 角柱請照抄以下演算法(以 N角柱為例)：
+                 N = 5
+                 a = 2; h = 5
+                 for i in range(N): ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
+                 R = a / (2 * np.sin(np.pi/N)); apothem = a / (2 * np.tan(np.pi/N))
+                 ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
+                 ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
+               - 圓錐防呆：
+                 L = 10; r = 3; theta = 360 * (r / L)
+                 ax.add_patch(Wedge((0,0), L, 90 - theta/2, 90 + theta/2, fc='white', ec='black', lw=1.5))
+                 ax.add_patch(Circle((0, L + r), r, fc='white', ec='black', lw=1.5))
+               - 使用 ax.set_aspect('equal') 與 ax.axis('off')。
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
             prompt = f"""
@@ -380,6 +385,9 @@ def draw_prism(ax, N, a, h):
     apothem = a / (2 * np.tan(np.pi/N))
     ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
     ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
+    
+    # 【✅ 隱形邊界點】：強迫畫布撐開，防止多邊形被裁切
+    ax.plot([-R, N*a + R], [-apothem - R, h + apothem + R], alpha=0)
     ax.set_aspect('equal')
     ax.axis('off')
 
@@ -387,6 +395,9 @@ def draw_cone(ax, L, r):
     theta = 360 * (r / L)
     ax.add_patch(Wedge((0, L), L, 270 - theta/2, 270 + theta/2, fc='white', ec='black', lw=1.5))
     ax.add_patch(Circle((0, -r), r, fc='white', ec='black', lw=1.5))
+    
+    # 【✅ 隱形邊界點】：強迫畫布撐開，防止圓與扇形被裁切
+    ax.plot([-L, L], [-2*r, L], alpha=0)
     ax.set_aspect('equal')
     ax.axis('off')
 
