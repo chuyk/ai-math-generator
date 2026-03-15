@@ -259,18 +259,12 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。
             2. "python_code": 繪製該圖形的展開圖。必須自行宣告 fig, ax = plt.subplots()。
-               - 角柱請照抄以下演算法(以 N角柱為例)：
-                 N = 5
-                 a = 2; h = 5
-                 for i in range(N): ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
-                 R = a / (2 * np.sin(np.pi/N)); apothem = a / (2 * np.tan(np.pi/N))
-                 ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
-                 ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
-               - 圓錐防呆：
-                 L = 10; r = 3; theta = 360 * (r / L)
-                 ax.add_patch(Wedge((0,0), L, 90 - theta/2, 90 + theta/2, fc='white', ec='black', lw=1.5))
-                 ax.add_patch(Circle((0, L + r), r, fc='white', ec='black', lw=1.5))
-               - 使用 ax.set_aspect('equal') 與 ax.axis('off')。
+               - 【⚠️ 絕對禁令】：不准自行計算座標或使用 add_patch！必須直接呼叫底層已建好的防呆函數：
+               - 若為角柱，請呼叫 `draw_prism(ax, N, a, h)` (N為邊數, a為底邊長, h為柱高)
+               - 若為圓錐，請呼叫 `draw_cone(ax, L, r)` (L為扇形半徑/母線長, r為底圓半徑)
+               - 程式碼範例：
+                 fig, ax = plt.subplots()
+                 draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
             prompt = f"""
