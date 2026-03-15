@@ -112,11 +112,11 @@ elif question_type == "立體圖形三視圖 (積木堆疊)":
     st.info("💡 系統已全面改用 Python 幾何引擎！強迫 AI 照抄精算後的四個 3D 視圖選項，100% 符合數學課本規範。")
 elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
     topic = st.text_input("💡 請輸入要測驗的展開圖圖形：", value="五角柱的展開圖與表面積")
+    st.info("💡 系統已修正防呆機制：強制 AI 使用底層數學引擎繪圖，確保圓錐 100% 完美相切不分離。")
 elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
     topic = st.text_input("💡 請輸入圖表主題與資料情境：", value="某班學生數學成績直方圖")
 elif question_type == "一元一次不等式圖解 (數線)":
     topic = st.text_input("💡 請輸入不等式主題：", value="解一元一次不等式並在數線上圖示")
-    st.info("💡 系統已升級：支援單向與封閉範圍不等式！並封鎖 AI 繪圖權限，保證懸浮線條 100% 穩定。")
 elif question_type == "純文字計算題 (無插圖)":
     topic = st.text_input("💡 請輸入代數或計算主題：", value="一元一次方程式的應用")
 elif question_type == "會考非選素養題 (情境+兩小題)":
@@ -260,18 +260,12 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。
             2. "python_code": 繪製該圖形的展開圖。必須自行宣告 fig, ax = plt.subplots()。
-               - 角柱請照抄以下演算法(以 N角柱為例)：
-                 N = 5
-                 a = 2; h = 5
-                 for i in range(N): ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
-                 R = a / (2 * np.sin(np.pi/N)); apothem = a / (2 * np.tan(np.pi/N))
-                 ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
-                 ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
-               - 圓錐防呆：
-                 L = 10; r = 3; theta = 360 * (r / L)
-                 ax.add_patch(Wedge((0,0), L, 90 - theta/2, 90 + theta/2, fc='white', ec='black', lw=1.5))
-                 ax.add_patch(Circle((0, L + r), r, fc='white', ec='black', lw=1.5))
-               - 使用 ax.set_aspect('equal') 與 ax.axis('off')。
+               - 【⚠️ 絕對禁令】：你不准自己算幾何座標或寫 add_patch！請直接呼叫底層內建的防呆函數：
+               - 若為角柱，呼叫 `draw_prism(ax, N, a, h)` (N為邊數, a為底邊長, h為柱高)。
+               - 若為圓錐，呼叫 `draw_cone(ax, L, r)` (L為母線長, r為底圓半徑)。
+               - 程式碼範例：
+                 fig, ax = plt.subplots()
+                 draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
             prompt = f"""
@@ -288,18 +282,21 @@ def run_ai_generation(is_reroll=False):
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
-            1. "question_text": 
-               - 題目明確問：「求此不等式的解為何？」
-               - 【⚠️ 重大更新】：題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
-               - 選項必須是純文字數學範圍（如 (A) $x > 3$ 或 (B) $-2 < x \\le 4$）。
-            2. "python_code": 
-               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。
-               - 單向不等式範例 (x > 3)：
-                 `draw_number_line(ax, ans_start=3, ans_end=None, direction='right', is_solid_start=False)`
-               - 單向不等式範例 (x <= -1)：
-                 `draw_number_line(ax, ans_start=-1, ans_end=None, direction='left', is_solid_start=True)`
-               - 封閉範圍範例 (-2 < x <= 4)：
-                 `draw_number_line(ax, ans_start=-2, ans_end=4, is_solid_start=False, is_solid_end=True)`
+            1. "question_text": 題目明確問：「求此不等式的解為何？」選項必須是純文字數學範圍（如 (A) $x > 3$）。
+            2. "python_code": 必須自行宣告 fig, ax = plt.subplots(figsize=(6, 2))。
+               - 【⚠️ 完美單一數線防呆】：
+                 ax.spines['top'].set_visible(False)
+                 ax.spines['right'].set_visible(False)
+                 ax.spines['left'].set_visible(False)
+                 ax.spines['bottom'].set_position('zero')
+                 ax.get_yaxis().set_visible(False)
+                 ax.set_xlim(ans - 6, ans + 6)
+                 ax.set_xticks(np.arange(ans-5, ans+6, 1))
+                 ax.plot([ans, ans], [0, 0.5], 'k-', lw=1.5)
+                 ax.annotate('', xy=(x_end, 0.5), xytext=(ans, 0.5), arrowprops=dict(arrowstyle='->', lw=1.5))
+                 ax.plot(ans, 0, marker='o', markersize=8, markerfacecolor='black', markeredgecolor='black', zorder=5)
+                 ax.set_ylim(-0.5, 1)
+                 ax.margins(0.15)
             """
         elif question_type == "純文字計算題 (無插圖)":
             prompt = f"""
@@ -385,7 +382,6 @@ def draw_prism(ax, N, a, h):
     ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.autoscale_view()
 
 def draw_cone(ax, L, r):
     theta = 360 * (r / L)
@@ -393,7 +389,6 @@ def draw_cone(ax, L, r):
     ax.add_patch(Circle((0, -r), r, fc='white', ec='black', lw=1.5))
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.autoscale_view()
 
 def draw_voxels(ax, heights):
     heights = np.array(heights)
