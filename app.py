@@ -73,6 +73,9 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
+    # 【新增】：系統驗證碼保護機制
+    verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
+    
     if user_input_key != st.session_state.api_key:
         st.session_state.api_key = user_input_key
     
@@ -84,6 +87,9 @@ with st.sidebar:
     st.markdown("---")
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
+    
+    # 【新增】：圖片自動去背選項
+    transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
     
     st.markdown("---")
     st.caption("👨‍🏫 宜蘭縣中華國中教師 / 阿凱老師製作")
@@ -107,7 +113,8 @@ question_type = st.radio(
 
 topic = ""
 if question_type == "一般幾何 (平面/複合圖形)":
-    topic = st.text_input("💡 請輸入出題單元：", value="直角三角形斜邊上的高")
+    # 【修改】：加入括號排除概念的提示
+    topic = st.text_input("💡 請輸入出題單元 (可用括號排除概念，如：圓周角(不要用到圓內角))：", value="直角三角形斜邊上的高")
 elif question_type == "立體圖形三視圖 (積木堆疊)":
     st.info("💡 系統已全面改用 Python 幾何引擎！強迫 AI 照抄精算後的四個 3D 視圖選項，100% 符合數學課本規範。")
 elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
@@ -126,6 +133,11 @@ st.markdown("### 🚀 第二步：生成或修改考題")
 col_gen, col_reroll = st.columns([1, 4])
 
 def run_ai_generation(is_reroll=False):
+    # 【新增】：驗證碼檢查邏輯
+    if verify_code != "kai":
+        st.error("🔒 系統驗證碼錯誤！請在左側輸入正確的驗證碼以解鎖出題功能。")
+        return
+
     if not st.session_state.api_key:
         st.warning("請先在左側輸入您的 Google API Key 喔！")
         return
@@ -454,10 +466,11 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.set_ylim(-0.5, 1)
     ax.margins(0.15)
 """
-                cleanup_code = """
+                # 【修改】：加入 transparent 參數連動去背選項
+                cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
-    plt.savefig('temp_diagram.png', bbox_inches='tight', dpi=300)
+    plt.savefig('temp_diagram.png', bbox_inches='tight', dpi=300, transparent={transparent_bg})
 finally:
     plt.close('all')
 """
