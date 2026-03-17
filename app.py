@@ -73,7 +73,7 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
-    # 系統驗證碼保護機制
+    # 【回歸】：系統驗證碼保護機制
     verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
@@ -88,7 +88,7 @@ with st.sidebar:
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
     
-    # 圖片自動去背選項
+    # 【回歸】：圖片自動去背選項
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
     
     st.markdown("---")
@@ -102,7 +102,7 @@ question_type = st.radio(
     "請選擇您要生成的題目大類：",
     [
         "一般幾何 (平面/複合圖形)", 
-        "直角坐標系與函數圖形",   # 【新增】：獨立的座標系選項
+        "直角坐標系與函數圖形",   # 【回歸】：獨立的座標系選項
         "立體圖形三視圖 (積木堆疊)", 
         "立體圖形展開圖 (圓柱/圓錐/角柱)", 
         "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)", 
@@ -114,6 +114,7 @@ question_type = st.radio(
 
 topic = ""
 if question_type == "一般幾何 (平面/複合圖形)":
+    # 【回歸】：加入括號排除概念的提示
     topic = st.text_input("💡 請輸入出題單元 (可用括號排除概念，如：圓周角(不要用到圓內角))：", value="直角三角形斜邊上的高")
 elif question_type == "直角坐標系與函數圖形":
     topic = st.text_input("💡 請輸入函數或方程式主題：", value="二元一次聯立方程式的圖形")
@@ -136,6 +137,7 @@ st.markdown("### 🚀 第二步：生成或修改考題")
 col_gen, col_reroll = st.columns([1, 4])
 
 def run_ai_generation(is_reroll=False):
+    # 【回歸】：驗證碼檢查邏輯
     if verify_code != "kai":
         st.error("🔒 系統驗證碼錯誤！請在左側輸入正確的驗證碼以解鎖出題功能。")
         return
@@ -184,7 +186,6 @@ def run_ai_generation(is_reroll=False):
                - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
             """
         elif question_type == "直角坐標系與函數圖形":
-            # 【新增】：專屬函數圖形的 Prompt
             prompt = f"""
             請根據主題：【{topic}】，生成一道【{difficulty}】難度的測驗題。
             {base_rules}
@@ -398,7 +399,7 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
-# 【新增】：完美直角坐標系防呆引擎
+# 【回歸】：完美直角坐標系防呆引擎
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -434,7 +435,6 @@ def draw_prism(ax, N, a, h):
     ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
     ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
     
-    # 【✅ 隱形邊界點】：強迫畫布撐開，防止多邊形被裁切
     ax.plot([-R, N*a + R], [-apothem - R, h + apothem + R], alpha=0)
     ax.set_aspect('equal')
     ax.axis('off')
@@ -444,7 +444,6 @@ def draw_cone(ax, L, r):
     ax.add_patch(Wedge((0, L), L, 270 - theta/2, 270 + theta/2, fc='white', ec='black', lw=1.5))
     ax.add_patch(Circle((0, -r), r, fc='white', ec='black', lw=1.5))
     
-    # 【✅ 隱形邊界點】：強迫畫布撐開，防止圓與扇形被裁切
     ax.plot([-L, L], [-2*r, L], alpha=0)
     ax.set_aspect('equal')
     ax.axis('off')
@@ -469,7 +468,7 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
-# 【⚠️ 全新完美數線函數】：支援單向與封閉範圍，徹底解決不穩定與貼齊軸線問題
+# 【✅ 數線函數確認】：支援單向與封閉範圍
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -511,6 +510,7 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.set_ylim(-0.5, 1)
     ax.margins(0.15)
 """
+                # 【回歸】：連動 transparent_bg 變數進行去背
                 cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
