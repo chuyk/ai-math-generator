@@ -38,87 +38,34 @@ if "has_image" not in st.session_state:
     st.session_state.has_image = False
 
 # =======================================================
-# 網頁介面與 CSS 設定 (專業商業 SaaS 簡約風格)
+# 網頁介面與 CSS 設定 (完全移除商業 UI，回歸極簡)
 # =======================================================
 st.set_page_config(page_title="AI 數學題庫產生器", layout="wide")
 
 st.markdown("""
 <style>
-.stApp {
-    background-color: #F4F6F8;
-    color: #1F2937;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-.stApp > header { background-color: transparent !important; }
-[data-testid="stSidebar"] {
-    background-color: #FFFFFF;
-    border-right: 1px solid #E5E7EB;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.02);
-}
-div[data-testid="stVerticalBlock"] > div.element-container {
-    background-color: #FFFFFF;
-    border-radius: 10px;
-    padding: 12px 20px;
-    margin-bottom: 12px;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-.stButton > button[kind="primary"] {
-    background-color: #2563EB;
-    color: #FFFFFF;
-    border-radius: 6px;
-    border: none;
-    font-weight: 600;
-    padding: 0.5rem 1rem;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-    transition: all 0.2s ease;
-}
-.stButton > button[kind="primary"]:hover {
-    background-color: #1D4ED8;
-    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
-    transform: translateY(-1px);
-}
-.stButton > button[kind="secondary"] {
-    background-color: #FFFFFF;
-    color: #374151;
-    border: 1px solid #D1D5DB;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-.stButton > button[kind="secondary"]:hover {
-    background-color: #F9FAFB;
-    border-color: #9CA3AF;
-}
-.stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
-    background-color: #F9FAFB;
-    border: 1px solid #D1D5DB;
-    border-radius: 6px;
-    color: #111827;
-}
-.stTextInput input:focus {
-    border-color: #2563EB;
-    box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
-}
+/* 僅保留行動裝置警告標語，其餘全數刪除，恢復原生極簡白底 */
 .mobile-warning { 
     display: none; 
-    background-color: #FEF3C7; 
+    background-color: #fff3cd; 
     padding: 15px; 
     border-radius: 8px; 
-    border-left: 4px solid #F59E0B; 
-    color: #92400E; 
+    border-left: 6px solid #dc3545; 
+    color: #856404; 
     margin-bottom: 20px; 
-    font-size: 0.95rem;
+    font-weight: bold;
 }
-@media (max-width: 768px) { .mobile-warning { display: block; } }
+@media (max-width: 768px) { 
+    .mobile-warning { display: block; } 
+}
 </style>
 <div class="mobile-warning">
     📱 系統偵測到您可能正使用行動裝置。<br>本系統包含複雜公式渲染、AI 繪圖與 Word 轉檔排版功能，強烈建議使用「電腦瀏覽器」以獲得最佳操作體驗！
 </div>
 """, unsafe_allow_html=True)
 
-st.title("🤖 AI 數學題庫產生器")
-st.write("專業版：支援幾何繪圖、立體圖、不等式、素養題與動態難度，並透過 Pandoc 完美匯出 Word！")
+st.title("🤖 AI 數學題庫產生器 (阿凱老師專屬版)")
+st.write("支援幾何繪圖、立體圖、不等式、素養題與動態難度，並透過 Pandoc 完美匯出 Word！")
 
 # =======================================================
 # 全域變數初始化 (供後續判定使用)
@@ -132,7 +79,8 @@ show_equation = True
 with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
-    verify_code = st.text_input("🔒 系統驗證碼", type="password")
+    
+    verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
         st.session_state.api_key = user_input_key
@@ -145,7 +93,9 @@ with st.sidebar:
     st.markdown("---")
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
+    
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
+    
     st.markdown("---")
     st.caption("👨‍🏫 宜蘭縣中華國中教師 / 阿凱老師製作")
 
@@ -426,7 +376,6 @@ def run_ai_generation(is_reroll=False):
             if raw_code:
                 injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nimport urllib.request\nfrom matplotlib import font_manager\n"""
                 
-                # 【字型下載修正】：加回缺失的 URL 下載邏輯，保證統計圖中文正常
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
 plt.rcParams['axes.unicode_minus'] = False
@@ -465,7 +414,6 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
-# 【座標軸修正】：強制移除上右邊框，並將刻度鎖定在下左
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.spines['top'].set_color('none')
     ax.spines['right'].set_color('none')
@@ -495,7 +443,6 @@ def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.set_aspect('equal')
 
-# 【展開圖修正】：強制設定 xlim 與 ylim，放棄不可靠的隱形邊界
 def draw_prism(ax, N, a, h):
     for i in range(N): 
         ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
@@ -532,7 +479,6 @@ def draw_voxels(ax, heights):
     ax.view_init(elev=30, azim=-45)
     ax.axis('off')
 
-# 【直角記號防呆修正】：將複雜向量運算拉回底層，不讓 AI 亂算
 def draw_right_angle(ax, corner, p1, p2, size=0.5):
     corner, p1, p2 = np.array(corner), np.array(p1), np.array(p2)
     v1 = (p1 - corner) / np.linalg.norm(p1 - corner)
@@ -542,7 +488,6 @@ def draw_right_angle(ax, corner, p1, p2, size=0.5):
     pt3 = corner + size * v2
     ax.plot([pt1[0], pt2[0], pt3[0]], [pt1[1], pt2[1], pt3[1]], 'k-', lw=1.5)
 
-# 【數線箭頭徹底修正】：棄用 annotate，改用 plot marker 保證不變形
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
