@@ -38,13 +38,12 @@ if "has_image" not in st.session_state:
     st.session_state.has_image = False
 
 # =======================================================
-# 網頁介面與 CSS 設定 (回歸極簡乾淨的原生風格)
+# 網頁介面與 CSS 設定
 # =======================================================
 st.set_page_config(page_title="AI 數學題庫產生器", layout="wide")
 
 st.markdown("""
 <style>
-/* 行動裝置警告標語 */
 .mobile-warning { 
     display: none; 
     background-color: #fff3cd; 
@@ -162,7 +161,7 @@ def run_ai_generation(is_reroll=False):
     2. LaTeX 包覆：所有的數學符號、方程式，絕對必須用 $ 符號包覆起來，否則網頁無法渲染！
     3. 【考卷印刷視覺規範】：所有的繪圖絕對禁止使用灰色或彩色填滿！一律「純白底、純黑線」。
     4. 【⚠️ Markdown 刪除線防呆】：若要表示分數或數字範圍，【絕對使用全形波浪號「～」或連字號「-」】。
-    5. 【⚠️ 程式繪圖防呆】：請務必自行宣告畫布 (例如 fig, ax = plt.subplots())。但絕對不要在結尾寫 plt.savefig() 或 plt.show()，系統會自動接管存檔動作。
+    5. 【⚠️ 程式繪圖防呆】：請務必自行宣告畫布 (例如 fig, ax = plt.subplots())。絕對不要在結尾寫 plt.savefig() 或 plt.show()。
     """
 
     if is_reroll and question_type != "立體圖形三視圖 (積木堆疊)":
@@ -187,11 +186,9 @@ def run_ai_generation(is_reroll=False):
             2. "python_code": 
                - 必須自行宣告 fig, ax = plt.subplots()
                - 使用 ax.set_aspect('equal') 與 ax.axis('off')。
-               - 【⚠️ 直角記號絕對防呆】：必須照抄以下向量邏輯：
-                 u = (A - D) / np.linalg.norm(A - D); v = (C - D) / np.linalg.norm(C - D)
-                 p1 = D + 0.5 * u; p2 = p1 + 0.5 * v; p3 = D + 0.5 * v
-                 ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
-               - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
+               - 【⚠️ 直角記號防呆】：你不准自己算向量！若需畫直角記號，請直接呼叫底層函數 `draw_right_angle(ax, 直角頂點座標, 另一點座標, 第三點座標, size=0.5)`。
+               - 範例：若 A=(0,3), B=(0,0), C=(4,0)，則 B 為直角，呼叫 `draw_right_angle(ax, B, A, C)`。
+               - 繪圖最後請加上：ax.relim(); ax.autoscale_view(); ax.margins(0.15)
             """
         elif question_type == "直角坐標系與函數圖形":
             intersection_rule = "- 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x, y, ' P(a,b)', fontsize=14)` 標示坐標。" if show_intersection else "- 【⚠️ 絕對禁令】：絕對不要在圖上標示交點的坐標文字、實心點或名稱。"
@@ -205,7 +202,6 @@ def run_ai_generation(is_reroll=False):
             2. "python_code": 
                - 必須自行宣告 fig, ax = plt.subplots()
                - 【⚠️ 絕對防呆】：你不准自己畫坐標軸！必須直接呼叫底層防呆函數 `draw_coordinate_system(ax, x_min, x_max, y_min, y_max)`。
-               - 請根據你設計的函數圖形範圍，給定合理的 x_min, x_max, y_min, y_max (例如 -5 到 5)。
                - 畫函數直線時，請使用 `ax.plot()`，例如：`ax.plot(x, y, 'k-', lw=1.5)`。
                {intersection_rule}
                {equation_rule}
@@ -262,6 +258,9 @@ def run_ai_generation(is_reroll=False):
             correct_idx = options_list.index(correct_ans_str)
             ans_letter = chr(65 + correct_idx)
             h_matrix_str = repr(heights_arr.tolist())
+            
+            # 【換行修正】：使用雙 <br> 強制斷開圖形與選項
+            options_text = f"(A)<br><br>{options_list[0]}<br><br>(B)<br><br>{options_list[1]}<br><br>(C)<br><br>{options_list[2]}<br><br>(D)<br><br>{options_list[3]}"
 
             prompt = f"""
             你是一位專業的國中數學老師。請生成一道【{difficulty}】難度的「立體積木三視圖」選擇題。
@@ -270,11 +269,8 @@ def run_ai_generation(is_reroll=False):
             【⚠️ 絕對防呆指示：請完全照抄我為你算好的選項，不准自己發揮！】
             - 測驗目標：【{target_view}】
             - 題目必須是：「如圖為正方體堆疊的立體圖形，請判斷其【{target_view}】為何？」
-            - 【重要】請將以下四個選項「一字不漏」地放進你的 JSON 選項中：
-              (A)<br>{options_list[0]}
-              (B)<br>{options_list[1]}
-              (C)<br>{options_list[2]}
-              (D)<br>{options_list[3]}
+            - 【重要】請將以下四個選項「一字不漏」地放進你的 JSON 選項中（這包含了強制換行符號）：
+              {options_text}
             - 【重要】解析請明確指出正確答案為 ({ans_letter})。
 
             請回傳 JSON：
@@ -325,16 +321,12 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 
                - 題目明確問：「求此不等式的解為何？」
-               - 【⚠️ 重大更新】：題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
-               - 選項必須是純文字數學範圍（如 (A) $x > 3$ 或 (B) $-2 < x \\le 4$）。
+               - 題型涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
             2. "python_code": 
-               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。
-               - 單向不等式範例 (x > 3)：
-                 `draw_number_line(ax, ans_start=3, ans_end=None, direction='right', is_solid_start=False)`
-               - 單向不等式範例 (x <= -1)：
-                 `draw_number_line(ax, ans_start=-1, ans_end=None, direction='left', is_solid_start=True)`
-               - 封閉範圍範例 (-2 < x <= 4)：
-                 `draw_number_line(ax, ans_start=-2, ans_end=4, is_solid_start=False, is_solid_end=True)`
+               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(8, 2))，並呼叫底層函數 draw_number_line。
+               - 單向 (x > 3)：`draw_number_line(ax, ans_start=3, direction='right', is_solid_start=False)`
+               - 單向 (x <= -1)：`draw_number_line(ax, ans_start=-1, direction='left', is_solid_start=True)`
+               - 封閉範圍 (-2 < x <= 4)：`draw_number_line(ax, ans_start=-2, ans_end=4, is_solid_start=False, is_solid_end=True)`
             """
         elif question_type == "純文字計算題 (無插圖)":
             prompt = f"""
@@ -379,14 +371,23 @@ def run_ai_generation(is_reroll=False):
             raw_code = data.get('python_code', '').strip()
             
             if raw_code:
-                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\n"""
+                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nimport urllib.request\nfrom matplotlib import font_manager\n"""
                 
+                # 【字型下載修正】：加回缺失的 URL 下載邏輯
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
 plt.rcParams['axes.unicode_minus'] = False
 
 def setup_chinese_font():
+    font_url = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansTC/NotoSansTC-Regular.ttf'
     font_path = 'NotoSansTC-Regular.ttf'
+    
+    if not os.path.exists(font_path):
+        try:
+            urllib.request.urlretrieve(font_url, font_path)
+        except:
+            pass
+
     if os.path.exists(font_path):
         font_manager.fontManager.addfont(font_path)
         plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_path).get_name()
@@ -445,7 +446,6 @@ def draw_prism(ax, N, a, h):
     apothem = a / (2 * np.tan(np.pi/N))
     ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
     ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
-    
     ax.plot([-R, N*a + R], [-apothem - R, h + apothem + R], alpha=0)
     ax.set_aspect('equal')
     ax.axis('off')
@@ -454,7 +454,6 @@ def draw_cone(ax, L, r):
     theta = 360 * (r / L)
     ax.add_patch(Wedge((0, L), L, 270 - theta/2, 270 + theta/2, fc='white', ec='black', lw=1.5))
     ax.add_patch(Circle((0, -r), r, fc='white', ec='black', lw=1.5))
-    
     ax.plot([-L, L], [-2*r, L], alpha=0)
     ax.set_aspect('equal')
     ax.axis('off')
@@ -472,13 +471,17 @@ def draw_voxels(ax, heights):
     ax.view_init(elev=30, azim=-45)
     ax.axis('off')
 
-def draw_right_angle(ax, A, D, C, size=0.5):
-    A, D, C = np.array(A), np.array(D), np.array(C)
-    u = (A - D) / np.linalg.norm(A - D)
-    v = (C - D) / np.linalg.norm(C - D)
-    p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
-    ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
+# 【直角記號防呆修正】：將複雜向量運算拉回底層，不讓 AI 亂算
+def draw_right_angle(ax, corner, p1, p2, size=0.5):
+    corner, p1, p2 = np.array(corner), np.array(p1), np.array(p2)
+    v1 = (p1 - corner) / np.linalg.norm(p1 - corner)
+    v2 = (p2 - corner) / np.linalg.norm(p2 - corner)
+    pt1 = corner + size * v1
+    pt2 = corner + size * v1 + size * v2
+    pt3 = corner + size * v2
+    ax.plot([pt1[0], pt2[0], pt3[0]], [pt1[1], pt2[1], pt3[1]], 'k-', lw=1.5)
 
+# 【數線箭頭徹底修正】：棄用會變形的 annotate，改用物理畫線與 marker
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -498,9 +501,12 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     
     y_h = 0.5
     if ans_end is None:
-        ax.plot([ans_start, ans_start], [0, y_h], 'k-', lw=1.5)
         x_end = ans_start + 4 if direction == 'right' else ans_start - 4
-        ax.annotate('', xy=(x_end, y_h), xytext=(ans_start, y_h), arrowprops=dict(arrowstyle='->', lw=1.5))
+        # 畫垂直線與水平線
+        ax.plot([ans_start, ans_start], [0, y_h], 'k-', lw=1.5)
+        ax.plot([ans_start, x_end], [y_h, y_h], 'k-', lw=1.5)
+        # 用 marker 畫箭頭，絕對不變形
+        ax.plot(x_end, y_h, marker='>' if direction == 'right' else '<', color='black', markersize=8, clip_on=False)
         fc = 'black' if is_solid_start else 'white'
         ax.plot(ans_start, 0, marker='o', markersize=8, markerfacecolor=fc, markeredgecolor='black', zorder=5)
     else:
