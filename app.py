@@ -38,74 +38,93 @@ if "has_image" not in st.session_state:
     st.session_state.has_image = False
 
 # =======================================================
-# 網頁介面與 專業鉑金色漸層 CSS 設定
+# 網頁介面與 CSS 設定 (專業商業 SaaS 簡約風格)
 # =======================================================
 st.set_page_config(page_title="AI 數學題庫產生器", layout="wide")
 
 st.markdown("""
 <style>
-/* 1. 專業鉑金色漸層主背景 */
+/* 1. 商業級簡約背景 */
 .stApp {
-    background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
-    color: #333333;
+    background-color: #F4F6F8;
+    color: #1F2937;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 .stApp > header {
     background-color: transparent !important;
 }
 
-/* 2. 側邊欄金屬髮絲紋質感 */
+/* 2. 乾淨的白色側邊欄 */
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #e2e2e2 0%, #d7d7d7 50%, #c4c4c4 100%);
-    border-right: 1px solid #b0b0b0;
-    box-shadow: 3px 0 10px rgba(0,0,0,0.1);
+    background-color: #FFFFFF;
+    border-right: 1px solid #E5E7EB;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.02);
 }
 
-/* 3. 鉑金立體按鈕設計 */
-.stButton > button {
-    background: linear-gradient(to bottom, #ffffff 0%, #e5e5e5 100%);
-    border: 1px solid #c0c0c0;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    color: #2c3e50 !important;
-    font-weight: 700;
+/* 3. 內容卡片化設計 */
+div[data-testid="stVerticalBlock"] > div.element-container {
+    background-color: #FFFFFF;
+    border-radius: 10px;
+    padding: 12px 20px;
+    margin-bottom: 12px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* 4. 專業按鈕樣式 */
+/* 主要按鈕 (Primary) */
+.stButton > button[kind="primary"] {
+    background-color: #2563EB;
+    color: #FFFFFF;
+    border-radius: 6px;
+    border: none;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
     transition: all 0.2s ease;
 }
-.stButton > button:hover {
-    background: linear-gradient(to bottom, #e5e5e5 0%, #cccccc 100%);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-    transform: translateY(2px);
-    border-color: #a0a0a0;
+.stButton > button[kind="primary"]:hover {
+    background-color: #1D4ED8;
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+    transform: translateY(-1px);
 }
-
-/* 4. 內容區塊半透明毛玻璃質感 */
-div[data-testid="stVerticalBlock"] > div.element-container {
-    background-color: rgba(255, 255, 255, 0.6);
-    border-radius: 10px;
-    padding: 10px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-}
-
-/* 5. 輸入框與選項質感 */
-.stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid #b3b3b3;
+/* 次要按鈕 (Secondary) */
+.stButton > button[kind="secondary"] {
+    background-color: #FFFFFF;
+    color: #374151;
+    border: 1px solid #D1D5DB;
     border-radius: 6px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.stButton > button[kind="secondary"]:hover {
+    background-color: #F9FAFB;
+    border-color: #9CA3AF;
 }
 
-/* 行動裝置警告標語 */
+/* 5. 輸入框與選項質感提升 */
+.stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+    background-color: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    color: #111827;
+    transition: border-color 0.2s;
+}
+.stTextInput input:focus {
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+}
+
+/* 行動裝置警告 */
 .mobile-warning { 
     display: none; 
-    background-color: #fff3cd; 
+    background-color: #FEF3C7; 
     padding: 15px; 
     border-radius: 8px; 
-    border-left: 6px solid #dc3545; 
-    color: #856404; 
+    border-left: 4px solid #F59E0B; 
+    color: #92400E; 
     margin-bottom: 20px; 
-    font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-size: 0.95rem;
 }
 @media (max-width: 768px) { 
     .mobile-warning { display: block; } 
@@ -116,8 +135,14 @@ div[data-testid="stVerticalBlock"] > div.element-container {
 </div>
 """, unsafe_allow_html=True)
 
-st.title("🤖 AI 數學題庫產生器 (阿凱老師專屬版)")
-st.write("支援幾何繪圖、立體圖、不等式、素養題與動態難度，並透過 Pandoc 完美匯出 Word！")
+st.title("🤖 AI 數學題庫產生器")
+st.write("專業版：支援幾何繪圖、立體圖、不等式、素養題與動態難度，並透過 Pandoc 完美匯出 Word！")
+
+# =======================================================
+# 全域變數初始化 (供後續判定使用)
+# =======================================================
+show_intersection = True
+show_equation = True
 
 # =======================================================
 # 側邊欄：設定與參數
@@ -126,8 +151,7 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
-    # 【加回】：系統驗證碼保護機制
-    verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
+    verify_code = st.text_input("🔒 系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
         st.session_state.api_key = user_input_key
@@ -136,12 +160,11 @@ with st.sidebar:
         st.session_state.api_key = ""
         st.rerun()
         
-    st.markdown("*(您的 API Key 僅於本次連線暫存，關閉網頁即自動銷毀，絕對安全)*")
+    st.markdown("*(您的 API Key 僅於本次連線暫存，絕對安全)*")
     st.markdown("---")
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
     
-    # 【加回】：圖片自動去背選項
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
     
     st.markdown("---")
@@ -155,7 +178,7 @@ question_type = st.radio(
     "請選擇您要生成的題目大類：",
     [
         "一般幾何 (平面/複合圖形)", 
-        "直角坐標系與函數圖形",   # 【加回】：獨立的座標系選項
+        "直角坐標系與函數圖形",
         "立體圖形三視圖 (積木堆疊)", 
         "立體圖形展開圖 (圓柱/圓錐/角柱)", 
         "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)", 
@@ -170,7 +193,13 @@ if question_type == "一般幾何 (平面/複合圖形)":
     topic = st.text_input("💡 請輸入出題單元 (可用括號排除概念，如：圓周角(不要用到圓內角))：", value="直角三角形斜邊上的高")
 elif question_type == "直角坐標系與函數圖形":
     topic = st.text_input("💡 請輸入函數或方程式主題：", value="二元一次聯立方程式的圖形")
-    st.info("💡 系統將自動繪製標準直角坐標系 (含十字箭頭、原點、x/y軸刻度標示)。")
+    # 【新增】：專屬圖形選項
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        show_intersection = st.checkbox("📍 標示交點坐標", value=True)
+    with col_opt2:
+        show_equation = st.checkbox("📝 顯示直線方程式 (圖例)", value=True)
+    st.info("💡 系統將自動繪製標準直角坐標系。")
 elif question_type == "立體圖形三視圖 (積木堆疊)":
     st.info("💡 系統已全面改用 Python 幾何引擎！強迫 AI 照抄精算後的四個 3D 視圖選項，100% 符合數學課本規範。")
 elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
@@ -189,7 +218,6 @@ st.markdown("### 🚀 第二步：生成或修改考題")
 col_gen, col_reroll = st.columns([1, 4])
 
 def run_ai_generation(is_reroll=False):
-    # 驗證碼防護機制
     if verify_code != "kai":
         st.error("🔒 系統驗證碼錯誤！請在左側輸入正確的驗證碼 (kai) 以解鎖出題功能。")
         return
@@ -238,7 +266,10 @@ def run_ai_generation(is_reroll=False):
                - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
             """
         elif question_type == "直角坐標系與函數圖形":
-            # 專屬函數圖形的 Prompt
+            # 【動態寫入】：依據使用者的打勾選項，動態增減 AI 繪圖指令
+            intersection_rule = "- 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x, y, ' P(a,b)', fontsize=14)` 標示坐標。" if show_intersection else "- 【⚠️ 絕對禁令】：絕對不要在圖上標示交點的坐標文字、實心點或名稱。"
+            equation_rule = "- 若要標示直線名稱，請使用 `ax.plot(..., label='L1: 方程式')` 並在最後呼叫 `ax.legend(loc='lower right')` 顯示圖例。" if show_equation else "- 【⚠️ 絕對禁令】：絕對不要顯示圖例 (legend)，也不要在圖上標示方程式文字。"
+            
             prompt = f"""
             請根據主題：【{topic}】，生成一道【{difficulty}】難度的測驗題。
             {base_rules}
@@ -249,7 +280,8 @@ def run_ai_generation(is_reroll=False):
                - 【⚠️ 絕對防呆】：你不准自己畫坐標軸！必須直接呼叫底層防呆函數 `draw_coordinate_system(ax, x_min, x_max, y_min, y_max)`。
                - 請根據你設計的函數圖形範圍，給定合理的 x_min, x_max, y_min, y_max (例如 -5 到 5)。
                - 畫函數直線時，請使用 `ax.plot()`，例如：`ax.plot(x, y, 'k-', lw=1.5)`。
-               - 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x, y, ' P', fontsize=14)` 標示名稱。
+               {intersection_rule}
+               {equation_rule}
                - 絕對不可使用 ax.axis('off')，否則坐標軸會消失！
             """
         elif question_type == "立體圖形三視圖 (積木堆疊)":
@@ -329,7 +361,7 @@ def run_ai_generation(is_reroll=False):
                      for x in range(3):
                          for z in range(heights[y, x]):
                              cubes[x, y, z] = True
-                 ax.voxels(cubes, facecolors='white', edgecolors='black', shade=False)
+                 ax.voxels(cubes, facecolors='#FFFFFF', edgecolors='black', shade=False)
                  ax.view_init(elev=30, azim=-45)
                  ax.set_box_aspect((1, 1, 1))
                  ax.axis('off')
@@ -452,7 +484,7 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
-# 【加回】：完美直角坐標系防呆引擎
+# 【完美直角坐標系防呆引擎】
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -521,6 +553,7 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
+# 【✅ 完美數線函數】
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -562,7 +595,7 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.set_ylim(-0.5, 1)
     ax.margins(0.15)
 """
-                # 【回歸】：依據前端選項自動決定是否去背
+                # 連動 transparent_bg 變數進行去背
                 cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
