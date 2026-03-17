@@ -38,93 +38,22 @@ if "has_image" not in st.session_state:
     st.session_state.has_image = False
 
 # =======================================================
-# 網頁介面與 CSS 設定 (專業商業 SaaS 簡約風格)
+# 網頁介面與 CSS 設定 (回歸極簡乾淨的原生風格)
 # =======================================================
 st.set_page_config(page_title="AI 數學題庫產生器", layout="wide")
 
 st.markdown("""
 <style>
-/* 1. 商業級簡約背景 */
-.stApp {
-    background-color: #F4F6F8;
-    color: #1F2937;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-.stApp > header {
-    background-color: transparent !important;
-}
-
-/* 2. 乾淨的白色側邊欄 */
-[data-testid="stSidebar"] {
-    background-color: #FFFFFF;
-    border-right: 1px solid #E5E7EB;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.02);
-}
-
-/* 3. 內容卡片化設計 */
-div[data-testid="stVerticalBlock"] > div.element-container {
-    background-color: #FFFFFF;
-    border-radius: 10px;
-    padding: 12px 20px;
-    margin-bottom: 12px;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-/* 4. 專業按鈕樣式 */
-/* 主要按鈕 (Primary) */
-.stButton > button[kind="primary"] {
-    background-color: #2563EB;
-    color: #FFFFFF;
-    border-radius: 6px;
-    border: none;
-    font-weight: 600;
-    padding: 0.5rem 1rem;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-    transition: all 0.2s ease;
-}
-.stButton > button[kind="primary"]:hover {
-    background-color: #1D4ED8;
-    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
-    transform: translateY(-1px);
-}
-/* 次要按鈕 (Secondary) */
-.stButton > button[kind="secondary"] {
-    background-color: #FFFFFF;
-    color: #374151;
-    border: 1px solid #D1D5DB;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-.stButton > button[kind="secondary"]:hover {
-    background-color: #F9FAFB;
-    border-color: #9CA3AF;
-}
-
-/* 5. 輸入框與選項質感提升 */
-.stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
-    background-color: #F9FAFB;
-    border: 1px solid #D1D5DB;
-    border-radius: 6px;
-    color: #111827;
-    transition: border-color 0.2s;
-}
-.stTextInput input:focus {
-    border-color: #2563EB;
-    box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
-}
-
-/* 行動裝置警告 */
+/* 行動裝置警告標語 */
 .mobile-warning { 
     display: none; 
-    background-color: #FEF3C7; 
+    background-color: #fff3cd; 
     padding: 15px; 
     border-radius: 8px; 
-    border-left: 4px solid #F59E0B; 
-    color: #92400E; 
+    border-left: 6px solid #dc3545; 
+    color: #856404; 
     margin-bottom: 20px; 
-    font-size: 0.95rem;
+    font-weight: bold;
 }
 @media (max-width: 768px) { 
     .mobile-warning { display: block; } 
@@ -135,8 +64,8 @@ div[data-testid="stVerticalBlock"] > div.element-container {
 </div>
 """, unsafe_allow_html=True)
 
-st.title("🤖 AI 數學題庫產生器")
-st.write("專業版：支援幾何繪圖、立體圖、不等式、素養題與動態難度，並透過 Pandoc 完美匯出 Word！")
+st.title("🤖 AI 數學題庫產生器 (阿凱老師專屬版)")
+st.write("支援幾何繪圖、立體圖、不等式、素養題與動態難度，並透過 Pandoc 完美匯出 Word！")
 
 # =======================================================
 # 全域變數初始化 (供後續判定使用)
@@ -151,7 +80,7 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
-    verify_code = st.text_input("🔒 系統驗證碼", type="password")
+    verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
         st.session_state.api_key = user_input_key
@@ -193,13 +122,12 @@ if question_type == "一般幾何 (平面/複合圖形)":
     topic = st.text_input("💡 請輸入出題單元 (可用括號排除概念，如：圓周角(不要用到圓內角))：", value="直角三角形斜邊上的高")
 elif question_type == "直角坐標系與函數圖形":
     topic = st.text_input("💡 請輸入函數或方程式主題：", value="二元一次聯立方程式的圖形")
-    # 【新增】：專屬圖形選項
     col_opt1, col_opt2 = st.columns(2)
     with col_opt1:
         show_intersection = st.checkbox("📍 標示交點坐標", value=True)
     with col_opt2:
         show_equation = st.checkbox("📝 顯示直線方程式 (圖例)", value=True)
-    st.info("💡 系統將自動繪製標準直角坐標系。")
+    st.info("💡 系統將自動繪製標準直角坐標系 (含十字箭頭、原點、x/y軸刻度標示)。")
 elif question_type == "立體圖形三視圖 (積木堆疊)":
     st.info("💡 系統已全面改用 Python 幾何引擎！強迫 AI 照抄精算後的四個 3D 視圖選項，100% 符合數學課本規範。")
 elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
@@ -266,7 +194,6 @@ def run_ai_generation(is_reroll=False):
                - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
             """
         elif question_type == "直角坐標系與函數圖形":
-            # 【動態寫入】：依據使用者的打勾選項，動態增減 AI 繪圖指令
             intersection_rule = "- 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x, y, ' P(a,b)', fontsize=14)` 標示坐標。" if show_intersection else "- 【⚠️ 絕對禁令】：絕對不要在圖上標示交點的坐標文字、實心點或名稱。"
             equation_rule = "- 若要標示直線名稱，請使用 `ax.plot(..., label='L1: 方程式')` 並在最後呼叫 `ax.legend(loc='lower right')` 顯示圖例。" if show_equation else "- 【⚠️ 絕對禁令】：絕對不要顯示圖例 (legend)，也不要在圖上標示方程式文字。"
             
@@ -361,7 +288,7 @@ def run_ai_generation(is_reroll=False):
                      for x in range(3):
                          for z in range(heights[y, x]):
                              cubes[x, y, z] = True
-                 ax.voxels(cubes, facecolors='#FFFFFF', edgecolors='black', shade=False)
+                 ax.voxels(cubes, facecolors='white', edgecolors='black', shade=False)
                  ax.view_init(elev=30, azim=-45)
                  ax.set_box_aspect((1, 1, 1))
                  ax.axis('off')
@@ -484,7 +411,6 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
-# 【完美直角坐標系防呆引擎】
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -553,7 +479,6 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
-# 【✅ 完美數線函數】
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -595,7 +520,6 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.set_ylim(-0.5, 1)
     ax.margins(0.15)
 """
-                # 連動 transparent_bg 變數進行去背
                 cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
