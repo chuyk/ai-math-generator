@@ -38,33 +38,87 @@ if "has_image" not in st.session_state:
     st.session_state.has_image = False
 
 # =======================================================
-# 網頁介面與 CSS 設定
+# 網頁介面與 CSS 設定 (專業商業 SaaS 簡約風格)
 # =======================================================
 st.set_page_config(page_title="AI 數學題庫產生器", layout="wide")
 
 st.markdown("""
 <style>
+.stApp {
+    background-color: #F4F6F8;
+    color: #1F2937;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.stApp > header { background-color: transparent !important; }
+[data-testid="stSidebar"] {
+    background-color: #FFFFFF;
+    border-right: 1px solid #E5E7EB;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.02);
+}
+div[data-testid="stVerticalBlock"] > div.element-container {
+    background-color: #FFFFFF;
+    border-radius: 10px;
+    padding: 12px 20px;
+    margin-bottom: 12px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.stButton > button[kind="primary"] {
+    background-color: #2563EB;
+    color: #FFFFFF;
+    border-radius: 6px;
+    border: none;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    transition: all 0.2s ease;
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: #1D4ED8;
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+    transform: translateY(-1px);
+}
+.stButton > button[kind="secondary"] {
+    background-color: #FFFFFF;
+    color: #374151;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.stButton > button[kind="secondary"]:hover {
+    background-color: #F9FAFB;
+    border-color: #9CA3AF;
+}
+.stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+    background-color: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    color: #111827;
+}
+.stTextInput input:focus {
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+}
 .mobile-warning { 
     display: none; 
-    background-color: #fff3cd; 
+    background-color: #FEF3C7; 
     padding: 15px; 
     border-radius: 8px; 
-    border-left: 6px solid #dc3545; 
-    color: #856404; 
+    border-left: 4px solid #F59E0B; 
+    color: #92400E; 
     margin-bottom: 20px; 
-    font-weight: bold;
+    font-size: 0.95rem;
 }
-@media (max-width: 768px) { 
-    .mobile-warning { display: block; } 
-}
+@media (max-width: 768px) { .mobile-warning { display: block; } }
 </style>
 <div class="mobile-warning">
     📱 系統偵測到您可能正使用行動裝置。<br>本系統包含複雜公式渲染、AI 繪圖與 Word 轉檔排版功能，強烈建議使用「電腦瀏覽器」以獲得最佳操作體驗！
 </div>
 """, unsafe_allow_html=True)
 
-st.title("🤖 AI 數學題庫產生器 (阿凱老師專屬版)")
-st.write("支援幾何繪圖、立體圖、不等式、素養題與動態難度，並透過 Pandoc 完美匯出 Word！")
+st.title("🤖 AI 數學題庫產生器")
+st.write("專業版：支援幾何繪圖、立體圖、不等式、素養題與動態難度，並透過 Pandoc 完美匯出 Word！")
 
 # =======================================================
 # 全域變數初始化 (供後續判定使用)
@@ -78,8 +132,7 @@ show_equation = True
 with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
-    
-    verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
+    verify_code = st.text_input("🔒 系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
         st.session_state.api_key = user_input_key
@@ -92,9 +145,7 @@ with st.sidebar:
     st.markdown("---")
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
-    
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
-    
     st.markdown("---")
     st.caption("👨‍🏫 宜蘭縣中華國中教師 / 阿凱老師製作")
 
@@ -201,11 +252,12 @@ def run_ai_generation(is_reroll=False):
             1. "question_text": 包含題目、四個選項與解析。聯立方程式請使用標準 LaTeX 語法。
             2. "python_code": 
                - 必須自行宣告 fig, ax = plt.subplots()
-               - 【⚠️ 絕對防呆】：你不准自己畫坐標軸！必須直接呼叫底層防呆函數 `draw_coordinate_system(ax, x_min, x_max, y_min, y_max)`。
+               - 【⚠️ 絕對防呆】：你不准自己設定坐標軸格式！必須直接呼叫底層函數 `draw_coordinate_system(ax, x_min, x_max, y_min, y_max)`。
+               - 請根據你設計的函數圖形範圍，給定合理的整數 x_min, x_max, y_min, y_max (例如 -5 到 5)。
                - 畫函數直線時，請使用 `ax.plot()`，例如：`ax.plot(x, y, 'k-', lw=1.5)`。
                {intersection_rule}
                {equation_rule}
-               - 絕對不可使用 ax.axis('off')，否則坐標軸會消失！
+               - 【⚠️ 絕對禁令】：嚴禁使用 ax.axis()、ax.set_xlim() 或自行重畫框線，否則十字坐標軸會被破壞！
             """
         elif question_type == "立體圖形三視圖 (積木堆疊)":
             target_view = random.choice(["前視圖", "上視圖", "右視圖"])
@@ -269,7 +321,7 @@ def run_ai_generation(is_reroll=False):
             【⚠️ 絕對防呆指示：請完全照抄我為你算好的選項，不准自己發揮！】
             - 測驗目標：【{target_view}】
             - 題目必須是：「如圖為正方體堆疊的立體圖形，請判斷其【{target_view}】為何？」
-            - 【重要】請將以下四個選項「一字不漏」地放進你的 JSON 選項中（這包含了強制換行符號）：
+            - 【重要】請將以下四個選項「一字不漏」地放進你的 JSON 選項中（包含了強制換行符號）：
               {options_text}
             - 【重要】解析請明確指出正確答案為 ({ans_letter})。
 
@@ -323,7 +375,8 @@ def run_ai_generation(is_reroll=False):
                - 題目明確問：「求此不等式的解為何？」
                - 題型涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
             2. "python_code": 
-               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(8, 2))，並呼叫底層函數 draw_number_line。
+               - 必須自行宣告 fig, ax = plt.subplots(figsize=(8, 2))，並呼叫底層函數 draw_number_line。
+               - 【⚠️ 絕對禁令】：嚴禁自行使用 ax.set_xlim() 或 ax.set_ylim()，否則圖形會被切斷！
                - 單向 (x > 3)：`draw_number_line(ax, ans_start=3, direction='right', is_solid_start=False)`
                - 單向 (x <= -1)：`draw_number_line(ax, ans_start=-1, direction='left', is_solid_start=True)`
                - 封閉範圍 (-2 < x <= 4)：`draw_number_line(ax, ans_start=-2, ans_end=4, is_solid_start=False, is_solid_end=True)`
@@ -373,7 +426,7 @@ def run_ai_generation(is_reroll=False):
             if raw_code:
                 injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nimport urllib.request\nfrom matplotlib import font_manager\n"""
                 
-                # 【字型下載修正】：加回缺失的 URL 下載邏輯
+                # 【字型下載修正】：加回缺失的 URL 下載邏輯，保證統計圖中文正常
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
 plt.rcParams['axes.unicode_minus'] = False
@@ -412,11 +465,14 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
+# 【座標軸修正】：強制移除上右邊框，並將刻度鎖定在下左
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_position('zero')
-    ax.spines['bottom'].set_position('zero')
+    ax.spines['top'].set_color('none')
+    ax.spines['right'].set_color('none')
+    ax.spines['left'].set_position(('data', 0))
+    ax.spines['bottom'].set_position(('data', 0))
+    ax.xaxis.set_ticks_position('bottom')
+    ax.yaxis.set_ticks_position('left')
     
     x_ticks = np.arange(x_min, x_max+1, 1)
     ax.set_xticks(x_ticks)
@@ -433,12 +489,13 @@ def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.text(-0.4, y_max + 0.2, '$y$', fontsize=14, style='italic')
     ax.text(-0.4, -0.4, '$O$', fontsize=14, style='italic')
     
-    ax.plot(x_max, 0, marker='>', color='black', clip_on=False, markersize=8)
-    ax.plot(0, y_max, marker='^', color='black', clip_on=False, markersize=8)
+    ax.plot(x_max, 0, marker='>', color='black', clip_on=False, markersize=8, zorder=10)
+    ax.plot(0, y_max, marker='^', color='black', clip_on=False, markersize=8, zorder=10)
     
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.set_aspect('equal')
 
+# 【展開圖修正】：強制設定 xlim 與 ylim，放棄不可靠的隱形邊界
 def draw_prism(ax, N, a, h):
     for i in range(N): 
         ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
@@ -446,7 +503,9 @@ def draw_prism(ax, N, a, h):
     apothem = a / (2 * np.tan(np.pi/N))
     ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
     ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
-    ax.plot([-R, N*a + R], [-apothem - R, h + apothem + R], alpha=0)
+    
+    ax.set_xlim(-R * 1.5, N*a + R * 1.5)
+    ax.set_ylim(-apothem - R * 1.5, h + apothem + R * 1.5)
     ax.set_aspect('equal')
     ax.axis('off')
 
@@ -454,7 +513,9 @@ def draw_cone(ax, L, r):
     theta = 360 * (r / L)
     ax.add_patch(Wedge((0, L), L, 270 - theta/2, 270 + theta/2, fc='white', ec='black', lw=1.5))
     ax.add_patch(Circle((0, -r), r, fc='white', ec='black', lw=1.5))
-    ax.plot([-L, L], [-2*r, L], alpha=0)
+    
+    ax.set_xlim(-L * 1.2, L * 1.2)
+    ax.set_ylim(-2*r * 1.2, L * 1.2)
     ax.set_aspect('equal')
     ax.axis('off')
 
@@ -481,7 +542,7 @@ def draw_right_angle(ax, corner, p1, p2, size=0.5):
     pt3 = corner + size * v2
     ax.plot([pt1[0], pt2[0], pt3[0]], [pt1[1], pt2[1], pt3[1]], 'k-', lw=1.5)
 
-# 【數線箭頭徹底修正】：棄用會變形的 annotate，改用物理畫線與 marker
+# 【數線箭頭徹底修正】：棄用 annotate，改用 plot marker 保證不變形
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -502,10 +563,8 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     y_h = 0.5
     if ans_end is None:
         x_end = ans_start + 4 if direction == 'right' else ans_start - 4
-        # 畫垂直線與水平線
         ax.plot([ans_start, ans_start], [0, y_h], 'k-', lw=1.5)
         ax.plot([ans_start, x_end], [y_h, y_h], 'k-', lw=1.5)
-        # 用 marker 畫箭頭，絕對不變形
         ax.plot(x_end, y_h, marker='>' if direction == 'right' else '<', color='black', markersize=8, clip_on=False)
         fc = 'black' if is_solid_start else 'white'
         ax.plot(ans_start, 0, marker='o', markersize=8, markerfacecolor=fc, markeredgecolor='black', zorder=5)
