@@ -73,7 +73,7 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
-    # 【新增】：系統驗證碼保護機制
+    # 系統驗證碼保護機制
     verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
@@ -88,7 +88,7 @@ with st.sidebar:
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
     
-    # 【新增】：圖片自動去背選項
+    # 圖片自動去背選項
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
     
     st.markdown("---")
@@ -102,6 +102,7 @@ question_type = st.radio(
     "請選擇您要生成的題目大類：",
     [
         "一般幾何 (平面/複合圖形)", 
+        "直角坐標系與函數圖形",   # 【新增】：獨立的座標系選項
         "立體圖形三視圖 (積木堆疊)", 
         "立體圖形展開圖 (圓柱/圓錐/角柱)", 
         "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)", 
@@ -113,8 +114,10 @@ question_type = st.radio(
 
 topic = ""
 if question_type == "一般幾何 (平面/複合圖形)":
-    # 【修改】：加入括號排除概念的提示
     topic = st.text_input("💡 請輸入出題單元 (可用括號排除概念，如：圓周角(不要用到圓內角))：", value="直角三角形斜邊上的高")
+elif question_type == "直角坐標系與函數圖形":
+    topic = st.text_input("💡 請輸入函數或方程式主題：", value="二元一次聯立方程式的圖形")
+    st.info("💡 系統將自動繪製標準直角坐標系 (含十字箭頭、原點、x/y軸刻度標示)。")
 elif question_type == "立體圖形三視圖 (積木堆疊)":
     st.info("💡 系統已全面改用 Python 幾何引擎！強迫 AI 照抄精算後的四個 3D 視圖選項，100% 符合數學課本規範。")
 elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
@@ -133,7 +136,6 @@ st.markdown("### 🚀 第二步：生成或修改考題")
 col_gen, col_reroll = st.columns([1, 4])
 
 def run_ai_generation(is_reroll=False):
-    # 【新增】：驗證碼檢查邏輯
     if verify_code != "kai":
         st.error("🔒 系統驗證碼錯誤！請在左側輸入正確的驗證碼以解鎖出題功能。")
         return
@@ -180,6 +182,21 @@ def run_ai_generation(is_reroll=False):
                  p1 = D + 0.5 * u; p2 = p1 + 0.5 * v; p3 = D + 0.5 * v
                  ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
                - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
+            """
+        elif question_type == "直角坐標系與函數圖形":
+            # 【新增】：專屬函數圖形的 Prompt
+            prompt = f"""
+            請根據主題：【{topic}】，生成一道【{difficulty}】難度的測驗題。
+            {base_rules}
+            請回傳 JSON：
+            1. "question_text": 包含題目、四個選項與解析。聯立方程式請使用標準 LaTeX 語法。
+            2. "python_code": 
+               - 必須自行宣告 fig, ax = plt.subplots()
+               - 【⚠️ 絕對防呆】：你不准自己畫坐標軸！必須直接呼叫底層防呆函數 `draw_coordinate_system(ax, x_min, x_max, y_min, y_max)`。
+               - 請根據你設計的函數圖形範圍，給定合理的 x_min, x_max, y_min, y_max (例如 -5 到 5)。
+               - 畫函數直線時，請使用 `ax.plot()`，例如：`ax.plot(x, y, 'k-', lw=1.5)`。
+               - 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x, y, ' P', fontsize=14)` 標示名稱。
+               - 絕對不可使用 ax.axis('off')，否則坐標軸會消失！
             """
         elif question_type == "立體圖形三視圖 (積木堆疊)":
             target_view = random.choice(["前視圖", "上視圖", "右視圖"])
@@ -381,6 +398,34 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
+# 【新增】：完美直角坐標系防呆引擎
+def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_position('zero')
+    ax.spines['bottom'].set_position('zero')
+    
+    x_ticks = np.arange(x_min, x_max+1, 1)
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(['' if x == 0 else str(x) for x in x_ticks])
+    
+    y_ticks = np.arange(y_min, y_max+1, 1)
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels(['' if y == 0 else str(y) for y in y_ticks])
+    
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    
+    ax.text(x_max + 0.2, -0.3, '$x$', fontsize=14, style='italic')
+    ax.text(-0.4, y_max + 0.2, '$y$', fontsize=14, style='italic')
+    ax.text(-0.4, -0.4, '$O$', fontsize=14, style='italic')
+    
+    ax.plot(x_max, 0, marker='>', color='black', clip_on=False, markersize=8)
+    ax.plot(0, y_max, marker='^', color='black', clip_on=False, markersize=8)
+    
+    ax.grid(True, linestyle='--', alpha=0.5)
+    ax.set_aspect('equal')
+
 def draw_prism(ax, N, a, h):
     for i in range(N): 
         ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
@@ -466,7 +511,6 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.set_ylim(-0.5, 1)
     ax.margins(0.15)
 """
-                # 【修改】：加入 transparent 參數連動去背選項
                 cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
