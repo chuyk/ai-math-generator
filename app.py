@@ -38,13 +38,12 @@ if "has_image" not in st.session_state:
     st.session_state.has_image = False
 
 # =======================================================
-# 網頁介面與 CSS 設定 (完全移除商業 UI，回歸極簡)
+# 網頁介面與 CSS 設定 (極簡乾淨風格)
 # =======================================================
 st.set_page_config(page_title="AI 數學題庫產生器", layout="wide")
 
 st.markdown("""
 <style>
-/* 僅保留行動裝置警告標語，其餘全數刪除，恢復原生極簡白底 */
 .mobile-warning { 
     display: none; 
     background-color: #fff3cd; 
@@ -55,9 +54,7 @@ st.markdown("""
     margin-bottom: 20px; 
     font-weight: bold;
 }
-@media (max-width: 768px) { 
-    .mobile-warning { display: block; } 
-}
+@media (max-width: 768px) { .mobile-warning { display: block; } }
 </style>
 <div class="mobile-warning">
     📱 系統偵測到您可能正使用行動裝置。<br>本系統包含複雜公式渲染、AI 繪圖與 Word 轉檔排版功能，強烈建議使用「電腦瀏覽器」以獲得最佳操作體驗！
@@ -79,8 +76,7 @@ show_equation = True
 with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
-    
-    verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
+    verify_code = st.text_input("🔒 系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
         st.session_state.api_key = user_input_key
@@ -93,9 +89,7 @@ with st.sidebar:
     st.markdown("---")
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
-    
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
-    
     st.markdown("---")
     st.caption("👨‍🏫 宜蘭縣中華國中教師 / 阿凱老師製作")
 
@@ -185,15 +179,21 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。
             2. "python_code": 
-               - 必須自行宣告 fig, ax = plt.subplots()
-               - 使用 ax.set_aspect('equal') 與 ax.axis('off')。
-               - 【⚠️ 直角記號防呆】：你不准自己算向量！若需畫直角記號，請直接呼叫底層函數 `draw_right_angle(ax, 直角頂點座標, 另一點座標, 第三點座標, size=0.5)`。
-               - 範例：若 A=(0,3), B=(0,0), C=(4,0)，則 B 為直角，呼叫 `draw_right_angle(ax, B, A, C)`。
-               - 繪圖最後請加上：ax.relim(); ax.autoscale_view(); ax.margins(0.15)
+               - 【⚠️ 強制模板】：必須完全套用以下寫法，若需直角記號，嚴禁自行計算，必須呼叫 `draw_right_angle`。
+               ```python
+               fig, ax = plt.subplots()
+               ax.set_aspect('equal')
+               ax.axis('off')
+               # 畫幾何圖形
+               ax.plot([0, 4, 0, 0], [0, 0, 3, 0], 'k-', lw=1.5)
+               # 畫直角記號 (參數: ax, 直角頂點, 相鄰點1, 相鄰點2)
+               draw_right_angle(ax, (0,0), (4,0), (0,3))
+               ax.relim(); ax.autoscale_view(); ax.margins(0.15)
+               ```
             """
         elif question_type == "直角坐標系與函數圖形":
-            intersection_rule = "- 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x, y, ' P(a,b)', fontsize=14)` 標示坐標。" if show_intersection else "- 【⚠️ 絕對禁令】：絕對不要在圖上標示交點的坐標文字、實心點或名稱。"
-            equation_rule = "- 若要標示直線名稱，請使用 `ax.plot(..., label='L1: 方程式')` 並在最後呼叫 `ax.legend(loc='lower right')` 顯示圖例。" if show_equation else "- 【⚠️ 絕對禁令】：絕對不要顯示圖例 (legend)，也不要在圖上標示方程式文字。"
+            intersection_rule = "ax.plot(交點x, 交點y, 'ko')\n               ax.text(交點x, 交點y, ' P(a,b)', fontsize=14)" if show_intersection else "# 【絕對禁令】：不准畫交點、不准寫交點文字"
+            equation_rule = "ax.legend(loc='lower right')" if show_equation else "# 【絕對禁令】：不准使用 ax.legend() 顯示圖例"
             
             prompt = f"""
             請根據主題：【{topic}】，生成一道【{difficulty}】難度的測驗題。
@@ -201,13 +201,18 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。聯立方程式請使用標準 LaTeX 語法。
             2. "python_code": 
-               - 必須自行宣告 fig, ax = plt.subplots()
-               - 【⚠️ 絕對防呆】：你不准自己設定坐標軸格式！必須直接呼叫底層函數 `draw_coordinate_system(ax, x_min, x_max, y_min, y_max)`。
-               - 請根據你設計的函數圖形範圍，給定合理的整數 x_min, x_max, y_min, y_max (例如 -5 到 5)。
-               - 畫函數直線時，請使用 `ax.plot()`，例如：`ax.plot(x, y, 'k-', lw=1.5)`。
+               - 【⚠️ 絕對防呆模板】：你不准自己設定坐標軸！必須「完全照抄」以下模板，只能修改數值：
+               ```python
+               fig, ax = plt.subplots()
+               # 畫直線
+               ax.plot([-5, 5], [..., ...], 'k-', lw=1.5, label='L1: 方程式')
+               # 標示交點
                {intersection_rule}
+               # 顯示圖例
                {equation_rule}
-               - 【⚠️ 絕對禁令】：嚴禁使用 ax.axis()、ax.set_xlim() 或自行重畫框線，否則十字坐標軸會被破壞！
+               # 絕對必須在最後一行呼叫此函數建立坐標系 (嚴禁使用 ax.axis)
+               draw_coordinate_system(ax, -5, 5, -5, 5) 
+               ```
             """
         elif question_type == "立體圖形三視圖 (積木堆疊)":
             target_view = random.choice(["前視圖", "上視圖", "右視圖"])
@@ -261,7 +266,6 @@ def run_ai_generation(is_reroll=False):
             ans_letter = chr(65 + correct_idx)
             h_matrix_str = repr(heights_arr.tolist())
             
-            # 【換行修正】：使用雙 <br> 強制斷開圖形與選項
             options_text = f"(A)<br><br>{options_list[0]}<br><br>(B)<br><br>{options_list[1]}<br><br>(C)<br><br>{options_list[2]}<br><br>(D)<br><br>{options_list[3]}"
 
             prompt = f"""
@@ -298,13 +302,18 @@ def run_ai_generation(is_reroll=False):
             {base_rules}
             請回傳 JSON：
             1. "question_text": 包含題目、四個選項與解析。
-            2. "python_code": 繪製該圖形的展開圖。必須自行宣告 fig, ax = plt.subplots()。
-               - 【⚠️ 絕對禁令】：不准自行計算座標或使用 add_patch！必須直接呼叫底層已建好的防呆函數：
-               - 若為角柱，請呼叫 `draw_prism(ax, N, a, h)` (N為邊數, a為底邊長, h為柱高)
-               - 若為圓錐，請呼叫 `draw_cone(ax, L, r)` (L為扇形半徑/母線長, r為底圓半徑)
-               - 程式碼範例：
-                 fig, ax = plt.subplots()
-                 draw_cone(ax, L=10, r=3)
+            2. "python_code": 
+               - 【⚠️ 強制模板】：你不准自行使用 add_patch！必須「完全照抄」以下模板之一，只改數字：
+               【角柱範例】
+               ```python
+               fig, ax = plt.subplots()
+               draw_prism(ax, N=5, a=2, h=4)
+               ```
+               【圓錐範例】
+               ```python
+               fig, ax = plt.subplots()
+               draw_cone(ax, L=10, r=3)
+               ```
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
             prompt = f"""
@@ -323,13 +332,13 @@ def run_ai_generation(is_reroll=False):
             請回傳 JSON：
             1. "question_text": 
                - 題目明確問：「求此不等式的解為何？」
-               - 題型涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
+               - 題型涵蓋「單向不等式」與「封閉範圍不等式」，請隨機出題！
             2. "python_code": 
-               - 必須自行宣告 fig, ax = plt.subplots(figsize=(8, 2))，並呼叫底層函數 draw_number_line。
-               - 【⚠️ 絕對禁令】：嚴禁自行使用 ax.set_xlim() 或 ax.set_ylim()，否則圖形會被切斷！
-               - 單向 (x > 3)：`draw_number_line(ax, ans_start=3, direction='right', is_solid_start=False)`
-               - 單向 (x <= -1)：`draw_number_line(ax, ans_start=-1, direction='left', is_solid_start=True)`
-               - 封閉範圍 (-2 < x <= 4)：`draw_number_line(ax, ans_start=-2, ans_end=4, is_solid_start=False, is_solid_end=True)`
+               - 【⚠️ 強制模板】：嚴禁自行使用 plot 或 arrow！你必須「完全照抄」以下模板，只能修改參數：
+               ```python
+               fig, ax = plt.subplots(figsize=(8, 2))
+               draw_number_line(ax, ans_start=3, ans_end=None, direction='right', is_solid_start=False)
+               ```
             """
         elif question_type == "純文字計算題 (無插圖)":
             prompt = f"""
@@ -414,6 +423,7 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
+# 【座標軸終極鎖死】：強制移除外框，並將 0 隱藏
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.spines['top'].set_color('none')
     ax.spines['right'].set_color('none')
@@ -443,6 +453,7 @@ def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.set_aspect('equal')
 
+# 【展開圖鎖死】：強制設定長寬比界線，防空白
 def draw_prism(ax, N, a, h):
     for i in range(N): 
         ax.add_patch(Rectangle((i*a, 0), a, h, fc='white', ec='black', lw=1.5))
@@ -488,6 +499,7 @@ def draw_right_angle(ax, corner, p1, p2, size=0.5):
     pt3 = corner + size * v2
     ax.plot([pt1[0], pt2[0], pt3[0]], [pt1[1], pt2[1], pt3[1]], 'k-', lw=1.5)
 
+# 【數線箭頭終極修復】：使用 marker 取代 annotate 保證不變形
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
