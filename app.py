@@ -79,6 +79,7 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
+    # 雙驗證碼防護機制
     verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
@@ -137,7 +138,7 @@ elif question_type == "立體圖形展開圖 (圓柱/圓錐/角柱)":
 elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
     topic = st.text_input("💡 請輸入圖表主題與資料情境：", value="某班學生數學成績直方圖")
 elif question_type == "一元一次不等式圖解 (數線)":
-    topic = st.text_input("💡 請輸入不等式主題：", value="解一元一次不等式並在數線上圖示")
+    topic = st.text_input("💡 請輸入不等式主題：", value="解一元一次不等式並在數線上圖示(封閉區間)")
 elif question_type == "純文字計算題 (無插圖)":
     topic = st.text_input("💡 請輸入代數或計算主題：", value="一元一次方程式的應用")
 elif question_type == "會考非選素養題 (情境+兩小題)":
@@ -314,7 +315,6 @@ def run_ai_generation(is_reroll=False):
                  draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
-            # 【終極防呆】：Y軸直排剝奪權力，呼叫底層 set_vertical_ylabel
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的統計圖表題。
             {base_rules}
@@ -327,22 +327,25 @@ def run_ai_generation(is_reroll=False):
                - 直方圖長條必須緊密相連 (width=組距)。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
-            # 【終極防呆】：強制 AI 出題多樣性
+            # 【終極動態防呆】：偵測到關鍵字直接強制 AI 出雙邊不等式
+            force_closed = "封閉" in topic or "範圍" in topic or "雙邊" in topic
+            closed_rule = "- 【⚠️ 封閉區間絕對強制令】：使用者已指定封閉區間！你【絕對強制】必須設計一道「連立不等式」或「雙邊連續不等式」(例如 $-5 \le 2x - 3 < 7$)，解答必須是介於兩個數字之間的範圍 (例如 $-1 \le x < 5$)，絕對不准出單向不等式！" if force_closed else "- 題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題，增加變化性！"
+
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
             1. "question_text": 
                - 題目明確問：「求此不等式的解為何？」
-               - 【⚠️ 題型多樣性防呆】：絕對不要每次都出相似的題目！請先隨機設計包含『括號』、『分數』或『兩側都有未知數』的複雜一元一次不等式（例如 $3(x-2) \le \\frac{1}{2}x + 4$），再算出真實解答。題型必須涵蓋「單向」與「封閉範圍」，請隨機出題！
-               - 【⚠️ 選項連動防呆】：根據你剛算出的真實解答去生成 (A)(B)(C)(D) 選項。
+               {closed_rule}
+               - 【⚠️ 動態選項防呆】：你必須先隨機產生方程式並算出真實解答，再根據解答生成 (A)(B)(C)(D) 選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。絕對不要只輸出死板不變的選項。
             2. "python_code": 
                - 【⚠️ 絕對禁令】：你不准自己寫 plot 或 add_patch 等任何繪圖指令！
                - 你只能「完全照抄」以下兩行程式碼，並將正確解答的參數填入函數中：
                ```python
                fig, ax = plt.subplots(figsize=(8, 3))
                # 參數：ax, 圖形種類("向右射線"/"向左射線"/"封閉區間"), 起點數值, 起點是否實心(True/False), 終點數值(若無則填None), 終點是否實心(預設False)
-               draw_number_line(ax, "向右射線", 3, False)
+               draw_number_line(ax, "封閉區間", -2, False, 4, True) # 此為封閉區間範例寫法
                ```
             """
         elif question_type == "純文字計算題 (無插圖)":
@@ -519,7 +522,6 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
-# 【完美還原的數線引擎】
 def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_solid=False):
     ax.clear()
     ax.spines['top'].set_visible(False)
