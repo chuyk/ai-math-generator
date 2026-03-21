@@ -95,7 +95,7 @@ with st.sidebar:
     
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
     
-    # 【新增 4】：SVG / PNG 格式選項
+    # 【新增】：Word 配圖儲存格式選項 (.png 或 .svg)
     img_format = st.radio("💾 Word 考卷配圖格式", [".png (一般圖檔)", ".svg (可編修向量圖)"])
     
     st.markdown("---")
@@ -158,7 +158,7 @@ def run_ai_generation(is_reroll=False):
 
     client = genai.Client(api_key=st.session_state.api_key)
     
-    # 【新增 3】：線段標示規範 \overline
+    # 【修正 3】：強制規定線段必須加上 \overline
     base_rules = """
     【⚠️ 極度重要：JSON、LaTeX 與 Python 繪圖複合規範】
     1. JSON 跳脫：所有的 LaTeX 語法反斜線「必須雙重跳脫」！例如：\\\\triangle。
@@ -183,7 +183,7 @@ def run_ai_generation(is_reroll=False):
         """
     else:
         if question_type == "一般幾何 (平面/複合圖形)":
-            # 【新增 2】：英文字級放大 16pt 防呆
+            # 【修正 2】：英文字級放大為 18pt，並利用偏移防止與線條重疊
             prompt = f"""
             請根據主題：【{topic}】，生成一道【{difficulty}】難度的幾何題。
             {base_rules}
@@ -196,11 +196,11 @@ def run_ai_generation(is_reroll=False):
                  u = (A - D) / np.linalg.norm(A - D); v = (C - D) / np.linalg.norm(C - D)
                  p1 = D + 0.5 * u; p2 = p1 + 0.5 * v; p3 = D + 0.5 * v
                  ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
-               - 【⚠️ 標籤字體防呆】：圖形中所有頂點的英文字母標示 (使用 ax.text 時)，必須強制加上參數 fontsize=16。
+               - 【⚠️ 標籤字體防呆】：圖形中所有頂點的英文字母標示 (使用 ax.text 時)，必須強制加上參數 fontsize=18，並且必須利用 ha='center', va='center' 或偏移座標 (例如 x+0.2, y-0.2) 將字母推開，絕對不能與幾何線條或直角記號重疊！
                - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
             """
         elif question_type == "直角坐標系與函數圖形":
-            intersection_rule = "- 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x, y, ' P(a,b)', fontsize=14)` 標示坐標。" if show_intersection else "- 【⚠️ 絕對禁令】：絕對不要在圖上標示交點的坐標文字、實心點或名稱。"
+            intersection_rule = "- 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x+0.2, y-0.2, ' P(a,b)', fontsize=14)` 標示坐標 (稍作偏移避免重疊)。" if show_intersection else "- 【⚠️ 絕對禁令】：絕對不要在圖上標示交點的坐標文字、實心點或名稱。"
             equation_rule = "- 若要標示直線名稱，請使用 `ax.plot(..., label='L1: 方程式')` 並在最後呼叫 `ax.legend(loc='lower right')` 顯示圖例。" if show_equation else "- 【⚠️ 絕對禁令】：絕對不要顯示圖例 (legend)，也不要在圖上標示方程式文字。"
             
             prompt = f"""
@@ -315,7 +315,7 @@ def run_ai_generation(is_reroll=False):
                  draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
-            # 【新增 5】：統計圖 Y軸直排防呆
+            # 【修正 5】：Y軸文字垂直換行
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的統計圖表題。
             {base_rules}
@@ -327,14 +327,14 @@ def run_ai_generation(is_reroll=False):
                - 直方圖長條必須緊密相連 (width=組距)。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
-            # 【新增 1】：不等式強制連動計算與選項
+            # 【修正 1】：確保 AI 產生的不等式選項能跟正確答案動態連動
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
             1. "question_text": 
                - 題目明確問：「求此不等式的解為何？」
-               - 題型涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
+               - 【⚠️ 重大更新】：題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
                - 【⚠️ 選項連動防呆】：你必須先隨機產生方程式並算出真實解答，再根據真實解答去生成 (A)(B)(C)(D) 四個選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。
             2. "python_code": 
                - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。
@@ -389,14 +389,23 @@ def run_ai_generation(is_reroll=False):
             raw_code = data.get('python_code', '').strip()
             
             if raw_code:
-                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\n"""
+                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nimport urllib.request\nfrom matplotlib import font_manager\n"""
                 
+                # 確保線上資源字型順利載入
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
 plt.rcParams['axes.unicode_minus'] = False
 
 def setup_chinese_font():
+    font_url = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansTC/NotoSansTC-Regular.ttf'
     font_path = 'NotoSansTC-Regular.ttf'
+    
+    if not os.path.exists(font_path):
+        try:
+            urllib.request.urlretrieve(font_url, font_path)
+        except:
+            pass
+
     if os.path.exists(font_path):
         font_manager.fontManager.addfont(font_path)
         plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_path).get_name()
@@ -421,11 +430,14 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
+# 直角坐標系引擎
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_position('zero')
-    ax.spines['bottom'].set_position('zero')
+    ax.spines['top'].set_color('none')
+    ax.spines['right'].set_color('none')
+    ax.spines['left'].set_position(('data', 0))
+    ax.spines['bottom'].set_position(('data', 0))
+    ax.xaxis.set_ticks_position('bottom')
+    ax.yaxis.set_ticks_position('left')
     
     x_ticks = np.arange(x_min, x_max+1, 1)
     ax.set_xticks(x_ticks)
@@ -442,8 +454,8 @@ def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.text(-0.4, y_max + 0.2, '$y$', fontsize=14, style='italic')
     ax.text(-0.4, -0.4, '$O$', fontsize=14, style='italic')
     
-    ax.plot(x_max, 0, marker='>', color='black', clip_on=False, markersize=8)
-    ax.plot(0, y_max, marker='^', color='black', clip_on=False, markersize=8)
+    ax.plot(x_max, 0, marker='>', color='black', clip_on=False, markersize=8, zorder=10)
+    ax.plot(0, y_max, marker='^', color='black', clip_on=False, markersize=8, zorder=10)
     
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.set_aspect('equal')
@@ -489,6 +501,7 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
+# 【完美還原】：一字不漏使用 app_OK.py 裡被驗證過最穩定的數線畫法
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -530,10 +543,14 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.set_ylim(-0.5, 1)
     ax.margins(0.15)
 """
-                # 【修改 4】：根據 UI 雙重存檔，兼顧網頁預覽 (png) 與 Word 輸出 (使用者選擇格式)
+                # 【修正 4】：移除背景透明版 (patch.set_visible)，避免 Word 解散群組時出現遮擋方塊
                 cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
+    fig = plt.gcf()
+    ax = plt.gca()
+    fig.patch.set_visible(False)
+    ax.patch.set_visible(False)
     plt.savefig('temp_diagram.png', bbox_inches='tight', dpi=300, transparent={transparent_bg})
     plt.savefig('temp_diagram.svg', bbox_inches='tight', transparent={transparent_bg})
 finally:
@@ -590,7 +607,6 @@ if st.session_state.current_question:
             st.markdown(st.session_state.current_question, unsafe_allow_html=True)
         with c2:
             st.subheader("📊 題目配圖")
-            # 網頁預覽一律用 PNG 最穩定
             st.image('temp_diagram.png', use_container_width=True)
     else:
         st.subheader("📝 測驗題目 (預覽)")
@@ -605,7 +621,7 @@ if st.session_state.current_question:
             try:
                 full_md = st.session_state.current_question
                 
-                # 【修改 4】：根據 UI 選項決定塞入 Word 的圖檔是 SVG 還是 PNG
+                # 【新增 4】：根據 UI SVG 選項塞入對應格式的圖檔
                 export_ext = "svg" if ".svg" in img_format else "png"
                 
                 if st.session_state.has_image and os.path.exists(f'temp_diagram.{export_ext}'):
