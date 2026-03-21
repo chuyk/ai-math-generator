@@ -79,7 +79,6 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
-    # 系統驗證碼保護機制
     verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
@@ -94,8 +93,10 @@ with st.sidebar:
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
     
-    # 圖片自動去背選項
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
+    
+    # 【新增 4】：SVG / PNG 格式選項
+    img_format = st.radio("💾 Word 考卷配圖格式", [".png (一般圖檔)", ".svg (可編修向量圖)"])
     
     st.markdown("---")
     st.caption("👨‍🏫 宜蘭縣中華國中教師 / 阿凱老師製作")
@@ -108,7 +109,7 @@ question_type = st.radio(
     "請選擇您要生成的題目大類：",
     [
         "一般幾何 (平面/複合圖形)", 
-        "直角坐標系與函數圖形",   # 【唯一新增的選項】
+        "直角坐標系與函數圖形",
         "立體圖形三視圖 (積木堆疊)", 
         "立體圖形展開圖 (圓柱/圓錐/角柱)", 
         "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)", 
@@ -147,7 +148,6 @@ st.markdown("### 🚀 第二步：生成或修改考題")
 col_gen, col_reroll = st.columns([1, 4])
 
 def run_ai_generation(is_reroll=False):
-    # 驗證碼檢查邏輯
     if verify_code != "kai":
         st.error("🔒 系統驗證碼錯誤！請在左側輸入正確的驗證碼以解鎖出題功能。")
         return
@@ -158,6 +158,7 @@ def run_ai_generation(is_reroll=False):
 
     client = genai.Client(api_key=st.session_state.api_key)
     
+    # 【新增 3】：線段標示規範 \overline
     base_rules = """
     【⚠️ 極度重要：JSON、LaTeX 與 Python 繪圖複合規範】
     1. JSON 跳脫：所有的 LaTeX 語法反斜線「必須雙重跳脫」！例如：\\\\triangle。
@@ -165,6 +166,7 @@ def run_ai_generation(is_reroll=False):
     3. 【考卷印刷視覺規範】：所有的繪圖絕對禁止使用灰色或彩色填滿！一律「純白底、純黑線」。
     4. 【⚠️ Markdown 刪除線防呆】：若要表示分數或數字範圍，【絕對使用全形波浪號「～」或連字號「-」】。
     5. 【⚠️ 程式繪圖防呆】：請務必自行宣告畫布 (例如 fig, ax = plt.subplots())。但絕對不要在結尾寫 plt.savefig() 或 plt.show()，系統會自動接管存檔動作。
+    6. 【⚠️ 線段標示規範】：題目文字或解析中若提到幾何「線段」，絕對必須使用 LaTeX 的 `\\\\overline{AB}` 來標示頂部橫線！
     """
 
     if is_reroll and question_type != "立體圖形三視圖 (積木堆疊)":
@@ -181,6 +183,7 @@ def run_ai_generation(is_reroll=False):
         """
     else:
         if question_type == "一般幾何 (平面/複合圖形)":
+            # 【新增 2】：英文字級放大 16pt 防呆
             prompt = f"""
             請根據主題：【{topic}】，生成一道【{difficulty}】難度的幾何題。
             {base_rules}
@@ -193,10 +196,10 @@ def run_ai_generation(is_reroll=False):
                  u = (A - D) / np.linalg.norm(A - D); v = (C - D) / np.linalg.norm(C - D)
                  p1 = D + 0.5 * u; p2 = p1 + 0.5 * v; p3 = D + 0.5 * v
                  ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
+               - 【⚠️ 標籤字體防呆】：圖形中所有頂點的英文字母標示 (使用 ax.text 時)，必須強制加上參數 fontsize=16。
                - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
             """
         elif question_type == "直角坐標系與函數圖形":
-            # 【唯一新增的 AI 指令】：教導 AI 如何使用座標系
             intersection_rule = "- 若需標示交點，可使用 `ax.plot(x, y, 'ko')` 畫出實心黑點，並用 `ax.text(x, y, ' P(a,b)', fontsize=14)` 標示坐標。" if show_intersection else "- 【⚠️ 絕對禁令】：絕對不要在圖上標示交點的坐標文字、實心點或名稱。"
             equation_rule = "- 若要標示直線名稱，請使用 `ax.plot(..., label='L1: 方程式')` 並在最後呼叫 `ax.legend(loc='lower right')` 顯示圖例。" if show_equation else "- 【⚠️ 絕對禁令】：絕對不要顯示圖例 (legend)，也不要在圖上標示方程式文字。"
             
@@ -208,7 +211,7 @@ def run_ai_generation(is_reroll=False):
             2. "python_code": 
                - 必須自行宣告 fig, ax = plt.subplots()
                - 【⚠️ 絕對防呆】：你不准自己畫坐標軸！必須直接呼叫底層防呆函數 `draw_coordinate_system(ax, x_min, x_max, y_min, y_max)`。
-               - 請根據你設計的函數圖形範圍，給定合理的整數 x_min, x_max, y_min, y_max (例如 -5 到 5)。
+               - 請根據你設計的函數圖形範圍，給定合理的 x_min, x_max, y_min, y_max (例如 -5 到 5)。
                - 畫函數直線時，請使用 `ax.plot()`，例如：`ax.plot(x, y, 'k-', lw=1.5)`。
                {intersection_rule}
                {equation_rule}
@@ -312,26 +315,30 @@ def run_ai_generation(is_reroll=False):
                  draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
+            # 【新增 5】：統計圖 Y軸直排防呆
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的統計圖表題。
             {base_rules}
             請回傳 JSON：
             1. "question_text": 包含題目、選項與解析。
             2. "python_code": 必須自行宣告 fig, ax = plt.subplots()。
-               - 圖表的標題、X軸標籤、Y軸標籤、圖例，全部必須使用繁體中文。
+               - 圖表的標題、X軸標籤、圖例，全部必須使用繁體中文。
+               - 【⚠️ Y軸直排防呆】：Y軸標籤請在每個中文字之間加入 `\\n` 換行符號，並設定 `rotation=0` 與 `labelpad=20` (例如：`ax.set_ylabel('次\\n數\\n(人)', rotation=0, labelpad=20)`)。
                - 直方圖長條必須緊密相連 (width=組距)。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
+            # 【新增 1】：不等式強制連動計算與選項
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
             1. "question_text": 
                - 題目明確問：「求此不等式的解為何？」
-               - 【⚠️ 重大更新】：題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
-               - 選項必須是純文字數學範圍（如 (A) $x > 3$ 或 (B) $-2 < x \\le 4$）。
+               - 題型涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
+               - 【⚠️ 選項連動防呆】：你必須先隨機產生方程式並算出真實解答，再根據真實解答去生成 (A)(B)(C)(D) 四個選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。
             2. "python_code": 
                - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。
+               - 【⚠️ 圖形連動防呆】：呼叫函數時，填入的參數 (ans_start, ans_end) 必須與你算出的真實解答完全一致！
                - 單向不等式範例 (x > 3)：
                  `draw_number_line(ax, ans_start=3, ans_end=None, direction='right', is_solid_start=False)`
                - 單向不等式範例 (x <= -1)：
@@ -414,14 +421,11 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
-# 【唯一新增的底層函數】：完美直角坐標系
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
-    ax.spines['top'].set_color('none')
-    ax.spines['right'].set_color('none')
-    ax.spines['left'].set_position(('data', 0))
-    ax.spines['bottom'].set_position(('data', 0))
-    ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_position('zero')
+    ax.spines['bottom'].set_position('zero')
     
     x_ticks = np.arange(x_min, x_max+1, 1)
     ax.set_xticks(x_ticks)
@@ -438,8 +442,8 @@ def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.text(-0.4, y_max + 0.2, '$y$', fontsize=14, style='italic')
     ax.text(-0.4, -0.4, '$O$', fontsize=14, style='italic')
     
-    ax.plot(x_max, 0, marker='>', color='black', clip_on=False, markersize=8, zorder=10)
-    ax.plot(0, y_max, marker='^', color='black', clip_on=False, markersize=8, zorder=10)
+    ax.plot(x_max, 0, marker='>', color='black', clip_on=False, markersize=8)
+    ax.plot(0, y_max, marker='^', color='black', clip_on=False, markersize=8)
     
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.set_aspect('equal')
@@ -452,7 +456,6 @@ def draw_prism(ax, N, a, h):
     ax.add_patch(RegularPolygon((a/2, -apothem), numVertices=N, radius=R, orientation=np.pi/N, fc='white', ec='black', lw=1.5))
     ax.add_patch(RegularPolygon((a/2, h + apothem), numVertices=N, radius=R, orientation=(np.pi/N if N%2==0 else np.pi/N + np.pi), fc='white', ec='black', lw=1.5))
     
-    # 【✅ 隱形邊界點】：強迫畫布撐開，防止多邊形被裁切
     ax.plot([-R, N*a + R], [-apothem - R, h + apothem + R], alpha=0)
     ax.set_aspect('equal')
     ax.axis('off')
@@ -462,7 +465,6 @@ def draw_cone(ax, L, r):
     ax.add_patch(Wedge((0, L), L, 270 - theta/2, 270 + theta/2, fc='white', ec='black', lw=1.5))
     ax.add_patch(Circle((0, -r), r, fc='white', ec='black', lw=1.5))
     
-    # 【✅ 隱形邊界點】：強迫畫布撐開，防止圓與扇形被裁切
     ax.plot([-L, L], [-2*r, L], alpha=0)
     ax.set_aspect('equal')
     ax.axis('off')
@@ -487,7 +489,6 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
-# 【⚠️ 全新完美數線函數】：支援單向與封閉範圍，徹底解決不穩定與貼齊軸線問題
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -529,11 +530,12 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.set_ylim(-0.5, 1)
     ax.margins(0.15)
 """
-                # 加入 transparent 參數連動去背選項
+                # 【修改 4】：根據 UI 雙重存檔，兼顧網頁預覽 (png) 與 Word 輸出 (使用者選擇格式)
                 cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
     plt.savefig('temp_diagram.png', bbox_inches='tight', dpi=300, transparent={transparent_bg})
+    plt.savefig('temp_diagram.svg', bbox_inches='tight', transparent={transparent_bg})
 finally:
     plt.close('all')
 """
@@ -546,6 +548,8 @@ finally:
             if st.session_state.current_code:
                 if os.path.exists('temp_diagram.png'):
                     os.remove('temp_diagram.png')
+                if os.path.exists('temp_diagram.svg'):
+                    os.remove('temp_diagram.svg')
                 
                 try:
                     exec(st.session_state.current_code, globals())
@@ -586,6 +590,7 @@ if st.session_state.current_question:
             st.markdown(st.session_state.current_question, unsafe_allow_html=True)
         with c2:
             st.subheader("📊 題目配圖")
+            # 網頁預覽一律用 PNG 最穩定
             st.image('temp_diagram.png', use_container_width=True)
     else:
         st.subheader("📝 測驗題目 (預覽)")
@@ -599,8 +604,12 @@ if st.session_state.current_question:
         with st.spinner("Pandoc 引擎排版中... (正在轉換 LaTeX 數學公式)"):
             try:
                 full_md = st.session_state.current_question
-                if st.session_state.has_image and os.path.exists('temp_diagram.png'):
-                    full_md += "\n\n### 題目配圖\n\n![幾何配圖](temp_diagram.png)\n"
+                
+                # 【修改 4】：根據 UI 選項決定塞入 Word 的圖檔是 SVG 還是 PNG
+                export_ext = "svg" if ".svg" in img_format else "png"
+                
+                if st.session_state.has_image and os.path.exists(f'temp_diagram.{export_ext}'):
+                    full_md += f"\n\n### 題目配圖\n\n![幾何配圖](temp_diagram.{export_ext})\n"
                 
                 output_filename = "math_test_pandoc.docx"
                 pypandoc.convert_text(full_md, 'docx', format='md', outputfile=output_filename)
