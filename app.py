@@ -79,6 +79,7 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
+    # 【驗證碼防護】：支援 kai 與 kaishow
     verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
@@ -95,7 +96,7 @@ with st.sidebar:
     
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
     
-    # 【新增】：Word 配圖儲存格式選項 (.png 或 .svg)
+    # 【SVG/PNG 格式選擇】
     img_format = st.radio("💾 Word 考卷配圖格式", [".png (一般圖檔)", ".svg (可編修向量圖)"])
     
     st.markdown("---")
@@ -148,7 +149,8 @@ st.markdown("### 🚀 第二步：生成或修改考題")
 col_gen, col_reroll = st.columns([1, 4])
 
 def run_ai_generation(is_reroll=False):
-    if verify_code != "kai":
+    # 【驗證碼邏輯】：雙碼通關
+    if verify_code not in ["kai", "kaishow"]:
         st.error("🔒 系統驗證碼錯誤！請在左側輸入正確的驗證碼以解鎖出題功能。")
         return
 
@@ -158,7 +160,7 @@ def run_ai_generation(is_reroll=False):
 
     client = genai.Client(api_key=st.session_state.api_key)
     
-    # 【修正 3】：強制規定線段必須加上 \overline
+    # 【最高指導原則】：加入 \overline 規範
     base_rules = """
     【⚠️ 極度重要：JSON、LaTeX 與 Python 繪圖複合規範】
     1. JSON 跳脫：所有的 LaTeX 語法反斜線「必須雙重跳脫」！例如：\\\\triangle。
@@ -183,7 +185,7 @@ def run_ai_generation(is_reroll=False):
         """
     else:
         if question_type == "一般幾何 (平面/複合圖形)":
-            # 【修正 2】：英文字級放大為 18pt，並利用偏移防止與線條重疊
+            # 【一般幾何】：字體 18pt 與 偏移防重疊
             prompt = f"""
             請根據主題：【{topic}】，生成一道【{difficulty}】難度的幾何題。
             {base_rules}
@@ -196,7 +198,7 @@ def run_ai_generation(is_reroll=False):
                  u = (A - D) / np.linalg.norm(A - D); v = (C - D) / np.linalg.norm(C - D)
                  p1 = D + 0.5 * u; p2 = p1 + 0.5 * v; p3 = D + 0.5 * v
                  ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
-               - 【⚠️ 標籤字體防呆】：圖形中所有頂點的英文字母標示 (使用 ax.text 時)，必須強制加上參數 fontsize=18，並且必須利用 ha='center', va='center' 或偏移座標 (例如 x+0.2, y-0.2) 將字母推開，絕對不能與幾何線條或直角記號重疊！
+               - 【⚠️ 標籤字體 18pt 防呆】：圖形中所有頂點的英文字母標示 (使用 ax.text 時)，必須強制加上參數 fontsize=18，且【嚴格規定】必須加上座標偏移量 (如 x+0.2, y-0.2) 或 ha/va 對齊，將字母往外推開，絕對不能與幾何線條或直角記號重疊！
                - ax.relim(); ax.autoscale_view(); ax.margins(0.15)
             """
         elif question_type == "直角坐標系與函數圖形":
@@ -315,7 +317,7 @@ def run_ai_generation(is_reroll=False):
                  draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
-            # 【修正 5】：Y軸文字垂直換行
+            # 【統計圖防呆】：解決 \n 解析錯誤 (SyntaxError)
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的統計圖表題。
             {base_rules}
@@ -323,22 +325,21 @@ def run_ai_generation(is_reroll=False):
             1. "question_text": 包含題目、選項與解析。
             2. "python_code": 必須自行宣告 fig, ax = plt.subplots()。
                - 圖表的標題、X軸標籤、圖例，全部必須使用繁體中文。
-               - 【⚠️ Y軸直排防呆】：Y軸標籤請在每個中文字之間加入 `\\n` 換行符號，並設定 `rotation=0` 與 `labelpad=20` (例如：`ax.set_ylabel('次\\n數\\n(人)', rotation=0, labelpad=20)`)。
+               - 【⚠️ Y軸直排安全寫法】：Y軸標籤若需垂直排列，請在每個中文字之間加入 '\\n' (請務必確保輸出的 Python 字串合法，如 "次\\n數\\n(人)" )，並加上 rotation=0 與 labelpad=20。
                - 直方圖長條必須緊密相連 (width=組距)。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
-            # 【修正 1】：確保 AI 產生的不等式選項能跟正確答案動態連動
+            # 【數線防呆】：強制 AI 先算真實解答再出選項
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
             1. "question_text": 
                - 題目明確問：「求此不等式的解為何？」
-               - 【⚠️ 重大更新】：題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
-               - 【⚠️ 選項連動防呆】：你必須先隨機產生方程式並算出真實解答，再根據真實解答去生成 (A)(B)(C)(D) 四個選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。
+               - 題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
+               - 【⚠️ 動態選項防呆】：你必須先隨機產生方程式並算出真實解答，再根據解答生成 (A)(B)(C)(D) 選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。絕對不要只輸出死板不變的選項。
             2. "python_code": 
-               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。
-               - 【⚠️ 圖形連動防呆】：呼叫函數時，填入的參數 (ans_start, ans_end) 必須與你算出的真實解答完全一致！
+               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。參數必須帶入正確的 ans_start 與 ans_end。
                - 單向不等式範例 (x > 3)：
                  `draw_number_line(ax, ans_start=3, ans_end=None, direction='right', is_solid_start=False)`
                - 單向不等式範例 (x <= -1)：
@@ -389,23 +390,14 @@ def run_ai_generation(is_reroll=False):
             raw_code = data.get('python_code', '').strip()
             
             if raw_code:
-                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nimport urllib.request\nfrom matplotlib import font_manager\n"""
+                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\n"""
                 
-                # 確保線上資源字型順利載入
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
 plt.rcParams['axes.unicode_minus'] = False
 
 def setup_chinese_font():
-    font_url = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansTC/NotoSansTC-Regular.ttf'
     font_path = 'NotoSansTC-Regular.ttf'
-    
-    if not os.path.exists(font_path):
-        try:
-            urllib.request.urlretrieve(font_url, font_path)
-        except:
-            pass
-
     if os.path.exists(font_path):
         font_manager.fontManager.addfont(font_path)
         plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_path).get_name()
@@ -430,7 +422,6 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
-# 直角坐標系引擎
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.spines['top'].set_color('none')
     ax.spines['right'].set_color('none')
@@ -501,8 +492,9 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
-# 【完美還原】：一字不漏使用 app_OK.py 裡被驗證過最穩定的數線畫法
+# 【✅ 數線完美退回原版】：使用不變形的 ax.annotate，並加上 ax.clear() 清除 AI 殘留
 def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
+    ax.clear()
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_visible(False)
@@ -523,7 +515,7 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     if ans_end is None:
         ax.plot([ans_start, ans_start], [0, y_h], 'k-', lw=1.5)
         x_end = ans_start + 4 if direction == 'right' else ans_start - 4
-        ax.annotate('', xy=(x_end, y_h), xytext=(ans_start, y_h), arrowprops=dict(arrowstyle='->', lw=1.5))
+        ax.annotate('', xy=(x_end, y_h), xytext=(ans_start, y_h), arrowprops=dict(arrowstyle='->', lw=1.5, color='black', shrinkA=0, shrinkB=0))
         fc = 'black' if is_solid_start else 'white'
         ax.plot(ans_start, 0, marker='o', markersize=8, markerfacecolor=fc, markeredgecolor='black', zorder=5)
     else:
@@ -543,7 +535,7 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.set_ylim(-0.5, 1)
     ax.margins(0.15)
 """
-                # 【修正 4】：移除背景透明版 (patch.set_visible)，避免 Word 解散群組時出現遮擋方塊
+                # 【修改】：加入去除底板補丁，讓 Word 的 SVG 解散群組後不會有方塊擋住
                 cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
@@ -621,7 +613,6 @@ if st.session_state.current_question:
             try:
                 full_md = st.session_state.current_question
                 
-                # 【新增 4】：根據 UI SVG 選項塞入對應格式的圖檔
                 export_ext = "svg" if ".svg" in img_format else "png"
                 
                 if st.session_state.has_image and os.path.exists(f'temp_diagram.{export_ext}'):
@@ -645,6 +636,8 @@ if st.session_state.current_question:
     st.subheader("📋 題目原始碼 (供複製)")
     st.code(st.session_state.current_question, language='markdown')
             
+    # 【驗證碼防護】：只有 kaishow 才能看到程式碼
     if st.session_state.current_code.strip():
-        with st.expander("👀 查看 Python 繪圖程式碼"):
-            st.code(st.session_state.current_code, language='python')
+        if verify_code == "kaishow":
+            with st.expander("👀 查看 Python 繪圖程式碼"):
+                st.code(st.session_state.current_code, language='python')
