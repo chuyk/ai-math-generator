@@ -96,7 +96,7 @@ with st.sidebar:
     
     transparent_bg = st.checkbox("🖼️ 圖片自動去背 (透明背景)", value=False)
     
-    # 【SVG/PNG 格式選擇】
+    # SVG/PNG 格式選擇
     img_format = st.radio("💾 Word 考卷配圖格式", [".png (一般圖檔)", ".svg (可編修向量圖)"])
     
     st.markdown("---")
@@ -160,7 +160,7 @@ def run_ai_generation(is_reroll=False):
 
     client = genai.Client(api_key=st.session_state.api_key)
     
-    # 【最高指導原則】：加入 \overline 規範
+    # 頂部橫線 \overline 與視覺規範
     base_rules = """
     【⚠️ 極度重要：JSON、LaTeX 與 Python 繪圖複合規範】
     1. JSON 跳脫：所有的 LaTeX 語法反斜線「必須雙重跳脫」！例如：\\\\triangle。
@@ -185,7 +185,6 @@ def run_ai_generation(is_reroll=False):
         """
     else:
         if question_type == "一般幾何 (平面/複合圖形)":
-            # 【一般幾何】：字體 18pt 與 偏移防重疊
             prompt = f"""
             請根據主題：【{topic}】，生成一道【{difficulty}】難度的幾何題。
             {base_rules}
@@ -317,19 +316,19 @@ def run_ai_generation(is_reroll=False):
                  draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
-            # 【統計圖防呆】：解決 \n 解析錯誤 (SyntaxError)
+            # 【終極修正 2】：強制使用 join 產生 Y軸直排字串，外加 16pt 字級
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的統計圖表題。
             {base_rules}
             請回傳 JSON：
             1. "question_text": 包含題目、選項與解析。
             2. "python_code": 必須自行宣告 fig, ax = plt.subplots()。
-               - 圖表的標題、X軸標籤、圖例，全部必須使用繁體中文。
-               - 【⚠️ Y軸直排安全寫法】：Y軸標籤若需垂直排列，請在每個中文字之間加入 '\\n' (請務必確保輸出的 Python 字串合法，如 "次\\n數\\n(人)" )，並加上 rotation=0 與 labelpad=20。
+               - 【⚠️ 字體大小防呆】：所有的標題、x 軸標籤、y 軸標籤，請加上 `fontsize=16` 參數。
+               - 【⚠️ Y軸直排防呆】：為了避免字串換行引發 syntax error，若要垂直顯示 Y 軸標題，請【嚴禁用實際換行符號】！請一律使用 `label_y = '\\n'.join(list('次數(人)'))` 這種 List 轉換法產生變數，再傳入 `ax.set_ylabel(label_y, rotation=0, labelpad=20, fontsize=16)`。
                - 直方圖長條必須緊密相連 (width=組距)。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
-            # 【數線防呆】：強制 AI 先算真實解答再出選項
+            # 【終極修正 1】：嚴格規定 AI 只能填數字進自訂函數，不准自己畫圖
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
@@ -339,13 +338,14 @@ def run_ai_generation(is_reroll=False):
                - 題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
                - 【⚠️ 動態選項防呆】：你必須先隨機產生方程式並算出真實解答，再根據解答生成 (A)(B)(C)(D) 選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。絕對不要只輸出死板不變的選項。
             2. "python_code": 
-               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(6, 2))，並呼叫底層防呆函數 draw_number_line。參數必須帶入正確的 ans_start 與 ans_end。
-               - 單向不等式範例 (x > 3)：
-                 `draw_number_line(ax, ans_start=3, ans_end=None, direction='right', is_solid_start=False)`
-               - 單向不等式範例 (x <= -1)：
-                 `draw_number_line(ax, ans_start=-1, ans_end=None, direction='left', is_solid_start=True)`
-               - 封閉範圍範例 (-2 < x <= 4)：
-                 `draw_number_line(ax, ans_start=-2, ans_end=4, is_solid_start=False, is_solid_end=True)`
+               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(8, 3))，並呼叫底層防呆函數 `draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_solid=False)`。參數必須帶入正確的真實解答。
+               - line_type 只能是 "向右射線", "向左射線", 或 "封閉區間"。
+               - 範例 (x > 3)：
+                 `draw_number_line(ax, "向右射線", 3, False)`
+               - 範例 (x <= -1)：
+                 `draw_number_line(ax, "向左射線", -1, True)`
+               - 範例 (-2 < x <= 4)：
+                 `draw_number_line(ax, "封閉區間", -2, False, 4, True)`
             """
         elif question_type == "純文字計算題 (無插圖)":
             prompt = f"""
@@ -390,14 +390,22 @@ def run_ai_generation(is_reroll=False):
             raw_code = data.get('python_code', '').strip()
             
             if raw_code:
-                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\n"""
+                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\nimport urllib.request\n"""
                 
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
 plt.rcParams['axes.unicode_minus'] = False
 
 def setup_chinese_font():
+    font_url = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansTC/NotoSansTC-Regular.ttf'
     font_path = 'NotoSansTC-Regular.ttf'
+    
+    if not os.path.exists(font_path):
+        try:
+            urllib.request.urlretrieve(font_url, font_path)
+        except:
+            pass
+
     if os.path.exists(font_path):
         font_manager.fontManager.addfont(font_path)
         plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_path).get_name()
@@ -492,8 +500,8 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
-# 【✅ 數線完美退回原版】：使用不變形的 ax.annotate，並加上 ax.clear() 清除 AI 殘留
-def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_start=True, is_solid_end=False):
+# 【終極防呆 1】：完整重現老師提供的 Colab 數線程式碼精華
+def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_solid=False):
     ax.clear()
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -501,46 +509,58 @@ def draw_number_line(ax, ans_start, ans_end=None, direction='right', is_solid_st
     ax.spines['bottom'].set_position('zero')
     ax.get_yaxis().set_visible(False)
     
-    if ans_end is not None:
-        min_val = min(ans_start, ans_end) - 3
-        max_val = max(ans_start, ans_end) + 3
-    else:
-        min_val = ans_start - 6
-        max_val = ans_start + 6
-        
-    ax.set_xlim(min_val, max_val)
-    ax.set_xticks(np.arange(min_val + 1, max_val, 1))
-    
     y_h = 0.5
-    if ans_end is None:
-        ax.plot([ans_start, ans_start], [0, y_h], 'k-', lw=1.5)
-        x_end = ans_start + 4 if direction == 'right' else ans_start - 4
-        ax.annotate('', xy=(x_end, y_h), xytext=(ans_start, y_h), arrowprops=dict(arrowstyle='->', lw=1.5, color='black', shrinkA=0, shrinkB=0))
-        fc = 'black' if is_solid_start else 'white'
-        ax.plot(ans_start, 0, marker='o', markersize=8, markerfacecolor=fc, markeredgecolor='black', zorder=5)
-    else:
-        left_val, right_val = min(ans_start, ans_end), max(ans_start, ans_end)
-        left_solid = is_solid_start if left_val == ans_start else is_solid_end
-        right_solid = is_solid_end if right_val == ans_end else is_solid_start
+    
+    if line_type == "封閉區間":
+        s, e = (start_val, end_val) if start_val <= end_val else (end_val, start_val)
+        s_inc = start_solid if start_val <= end_val else end_solid
+        e_inc = end_solid if start_val <= end_val else start_solid
         
-        ax.plot([left_val, left_val], [0, y_h], 'k-', lw=1.5)
-        ax.plot([right_val, right_val], [0, y_h], 'k-', lw=1.5)
-        ax.plot([left_val, right_val], [y_h, y_h], 'k-', lw=1.5)
+        s_fc = 'black' if s_inc else 'white'
+        e_fc = 'black' if e_inc else 'white'
         
-        fc_left = 'black' if left_solid else 'white'
-        fc_right = 'black' if right_solid else 'white'
-        ax.plot(left_val, 0, marker='o', markersize=8, markerfacecolor=fc_left, markeredgecolor='black', zorder=5)
-        ax.plot(right_val, 0, marker='o', markersize=8, markerfacecolor=fc_right, markeredgecolor='black', zorder=5)
+        ax.set_xlim(s - 3, e + 3)
+        ax.set_xticks(np.arange(int(s - 3), int(e + 4), 1))
         
+        ax.plot([s, s], [0, y_h], 'k-', lw=1.5)
+        ax.plot([e, e], [0, y_h], 'k-', lw=1.5)
+        ax.plot([s, e], [y_h, y_h], 'k-', lw=1.5)
+        ax.plot(s, 0, marker='o', markersize=8, markerfacecolor=s_fc, markeredgecolor='black', zorder=5)
+        ax.plot(e, 0, marker='o', markersize=8, markerfacecolor=e_fc, markeredgecolor='black', zorder=5)
+        
+    elif line_type == "向右射線":
+        s = start_val
+        s_fc = 'black' if start_solid else 'white'
+        
+        ax.set_xlim(s - 3, s + 6)
+        ax.set_xticks(np.arange(int(s - 3), int(s + 7), 1))
+        
+        ax.plot([s, s], [0, y_h], 'k-', lw=1.5)
+        ax.annotate('', xy=(s + 5, y_h), xytext=(s, y_h), arrowprops=dict(arrowstyle='->', color='black', lw=1.5))
+        ax.plot(s, 0, marker='o', markersize=8, markerfacecolor=s_fc, markeredgecolor='black', zorder=5)
+        
+    elif line_type == "向左射線":
+        s = start_val
+        s_fc = 'black' if start_solid else 'white'
+        
+        ax.set_xlim(s - 6, s + 3)
+        ax.set_xticks(np.arange(int(s - 6), int(s + 4), 1))
+        
+        ax.plot([s, s], [0, y_h], 'k-', lw=1.5)
+        ax.annotate('', xy=(s - 5, y_h), xytext=(s, y_h), arrowprops=dict(arrowstyle='->', color='black', lw=1.5))
+        ax.plot(s, 0, marker='o', markersize=8, markerfacecolor=s_fc, markeredgecolor='black', zorder=5)
+        
+    # 補上右側數線箭頭
+    x_min, x_max = ax.get_xlim()
+    ax.plot(x_max, 0, marker='>', color='black', markersize=8, clip_on=False, zorder=4)
     ax.set_ylim(-0.5, 1)
-    ax.margins(0.15)
 """
-                # 【修改】：加入去除底板補丁，讓 Word 的 SVG 解散群組後不會有方塊擋住
                 cleanup_code = f"""
 # ====== 系統自動存檔與記憶體釋放接管 ======
 try:
     fig = plt.gcf()
     ax = plt.gca()
+    # 移除透明底板，確保 SVG 解散群組後可直接編輯線條
     fig.patch.set_visible(False)
     ax.patch.set_visible(False)
     plt.savefig('temp_diagram.png', bbox_inches='tight', dpi=300, transparent={transparent_bg})
@@ -636,7 +656,7 @@ if st.session_state.current_question:
     st.subheader("📋 題目原始碼 (供複製)")
     st.code(st.session_state.current_question, language='markdown')
             
-    # 【驗證碼防護】：只有 kaishow 才能看到程式碼
+    # 【終極防呆 3】：只有 kaishow 能看到程式碼區塊
     if st.session_state.current_code.strip():
         if verify_code == "kaishow":
             with st.expander("👀 查看 Python 繪圖程式碼"):
