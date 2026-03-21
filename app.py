@@ -79,7 +79,6 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
-    # 雙驗證碼防護機制
     verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
@@ -160,7 +159,6 @@ def run_ai_generation(is_reroll=False):
 
     client = genai.Client(api_key=st.session_state.api_key)
     
-    # 最高指導原則保留不變
     base_rules = """
     【⚠️ 極度重要：JSON、LaTeX 與 Python 繪圖複合規範】
     1. JSON 跳脫：所有的 LaTeX 語法反斜線「必須雙重跳脫」！例如：\\\\triangle。
@@ -316,7 +314,7 @@ def run_ai_generation(is_reroll=False):
                  draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
-            # 【修正 2】：全中文防呆與完美的括號直排處理
+            # 【終極防呆】：Y軸直排剝奪權力，呼叫底層 set_vertical_ylabel
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的統計圖表題。
             {base_rules}
@@ -324,22 +322,20 @@ def run_ai_generation(is_reroll=False):
             1. "question_text": 包含題目、選項與解析。
             2. "python_code": 必須自行宣告 fig, ax = plt.subplots()。
                - 【⚠️ 語言禁令】：所有的圖表標題 (title)、X 軸與 Y 軸標籤、圖例，『絕對強制』使用繁體中文，嚴禁出現任何英文！
-               - 【⚠️ 字體大小防呆】：所有的標題、x 軸標籤、y 軸標籤，請加上 `fontsize=16` 參數。
-               - 【⚠️ Y軸直排防呆】：若需垂直顯示 Y 軸標籤，請在「中文字」之間手動加上 '\\n' 換行，但【括號與內部單位絕對不要拆開】！
-               - 正確範例寫法：`ax.set_ylabel('次\\n數\\n(人)', rotation=0, labelpad=20, fontsize=16)`
-               - 錯誤寫法：絕對不要用 `list()` 拆字，絕對不要把括號拆成 `(\\n人\\n)`。
+               - 【⚠️ 字體大小防呆】：所有的標題、x 軸標籤，請加上 `fontsize=16` 參數。
+               - 【⚠️ Y軸直排絕對防呆】：你不准自己設定 Y 軸標籤或自己加換行符號！請一律呼叫底層專屬函數 `set_vertical_ylabel(ax, '你的標籤字串')` (例如：`set_vertical_ylabel(ax, '次數(人)')`)，底層程式會完美幫你直排並處理括號，絕對不要自己寫 ax.set_ylabel！
                - 直方圖長條必須緊密相連 (width=組距)。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
-            # 【修正 1】：強制作答與選項連動，且不准 AI 亂加繪圖程式碼
+            # 【終極防呆】：強制 AI 出題多樣性
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
             請回傳 JSON：
             1. "question_text": 
                - 題目明確問：「求此不等式的解為何？」
-               - 題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
-               - 【⚠️ 動態選項防呆】：你必須先隨機產生方程式並算出真實解答，再根據真實解答去生成 (A)(B)(C)(D) 選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。絕對不要只輸出死板不變的選項。
+               - 【⚠️ 題型多樣性防呆】：絕對不要每次都出相似的題目！請先隨機設計包含『括號』、『分數』或『兩側都有未知數』的複雜一元一次不等式（例如 $3(x-2) \le \\frac{1}{2}x + 4$），再算出真實解答。題型必須涵蓋「單向」與「封閉範圍」，請隨機出題！
+               - 【⚠️ 選項連動防呆】：根據你剛算出的真實解答去生成 (A)(B)(C)(D) 選項。
             2. "python_code": 
                - 【⚠️ 絕對禁令】：你不准自己寫 plot 或 add_patch 等任何繪圖指令！
                - 你只能「完全照抄」以下兩行程式碼，並將正確解答的參數填入函數中：
@@ -392,7 +388,7 @@ def run_ai_generation(is_reroll=False):
             raw_code = data.get('python_code', '').strip()
             
             if raw_code:
-                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\nimport urllib.request\n"""
+                injected_imports = """import matplotlib.pyplot as plt\nimport numpy as np\nfrom matplotlib.patches import Wedge, Circle, Rectangle, Polygon, RegularPolygon\nimport mpl_toolkits.mplot3d\nimport platform\nimport os\nfrom matplotlib import font_manager\nimport urllib.request\nimport re\n"""
                 
                 font_setup = """
 plt.rcParams.update({'font.size': 16})
@@ -431,6 +427,27 @@ def setup_chinese_font():
                         pass
                         
 setup_chinese_font()
+
+# 【終極防呆】：Y軸文字完美直排，自動綁定單位括號，徹底解決字串報錯
+def set_vertical_ylabel(ax, text):
+    res = []
+    temp = ""
+    in_paren = False
+    for char in text:
+        if char in '({（':
+            in_paren = True
+            temp += char
+        elif char in ')}）':
+            in_paren = False
+            temp += char
+            res.append(temp)
+            temp = ""
+        elif in_paren:
+            temp += char
+        else:
+            res.append(char)
+    if temp: res.append(temp)
+    ax.set_ylabel('\\n'.join(res), rotation=0, labelpad=20, va='center', fontsize=16)
 
 def draw_coordinate_system(ax, x_min=-5, x_max=5, y_min=-5, y_max=5):
     ax.spines['top'].set_color('none')
@@ -502,7 +519,7 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
-# 【修正 1】：100% 移植 Colab 完美程式碼
+# 【完美還原的數線引擎】
 def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_solid=False):
     ax.clear()
     ax.spines['top'].set_visible(False)
@@ -555,9 +572,7 @@ def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_so
         ax.annotate('', xy=(s - 5, y_h), xytext=(s, y_h), arrowprops=dict(arrowstyle='->', color='black', lw=1.5))
         ax.plot(s, 0, marker='o', markersize=8, markerfacecolor=s_fc, markeredgecolor='black', zorder=5)
 
-    # 補上右側數線箭頭
-    x_min, x_max = ax.get_xlim()
-    ax.plot(x_max, 0, marker='>', color='black', markersize=8, clip_on=False, zorder=4)
+    ax.plot(ax.get_xlim()[1], 0, marker='>', color='black', markersize=8, clip_on=False, zorder=4)
     ax.set_ylim(-0.5, 1)
 """
                 cleanup_code = f"""
@@ -660,7 +675,6 @@ if st.session_state.current_question:
     st.subheader("📋 題目原始碼 (供複製)")
     st.code(st.session_state.current_question, language='markdown')
             
-    # 【修改 3】：只有 kaishow 能看到程式碼區塊
     if st.session_state.current_code.strip():
         if verify_code == "kaishow":
             with st.expander("👀 查看 Python 繪圖程式碼"):
