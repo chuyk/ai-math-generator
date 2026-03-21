@@ -79,7 +79,7 @@ with st.sidebar:
     st.header("⚙️ 系統設定")
     user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
     
-    # 【驗證碼防護】：支援 kai 與 kaishow
+    # 雙驗證碼防護機制
     verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
     
     if user_input_key != st.session_state.api_key:
@@ -149,7 +149,7 @@ st.markdown("### 🚀 第二步：生成或修改考題")
 col_gen, col_reroll = st.columns([1, 4])
 
 def run_ai_generation(is_reroll=False):
-    # 【驗證碼邏輯】：雙碼通關
+    # 雙驗證碼通關邏輯
     if verify_code not in ["kai", "kaishow"]:
         st.error("🔒 系統驗證碼錯誤！請在左側輸入正確的驗證碼以解鎖出題功能。")
         return
@@ -160,7 +160,7 @@ def run_ai_generation(is_reroll=False):
 
     client = genai.Client(api_key=st.session_state.api_key)
     
-    # 頂部橫線 \overline 與視覺規範
+    # 最高指導原則保留不變
     base_rules = """
     【⚠️ 極度重要：JSON、LaTeX 與 Python 繪圖複合規範】
     1. JSON 跳脫：所有的 LaTeX 語法反斜線「必須雙重跳脫」！例如：\\\\triangle。
@@ -278,10 +278,10 @@ def run_ai_generation(is_reroll=False):
             - 測驗目標：【{target_view}】
             - 題目必須是：「如圖為正方體堆疊的立體圖形，請判斷其【{target_view}】為何？」
             - 【重要】請將以下四個選項「一字不漏」地放進你的 JSON 選項中：
-              (A)<br>{options_list[0]}
-              (B)<br>{options_list[1]}
-              (C)<br>{options_list[2]}
-              (D)<br>{options_list[3]}
+              (A)<br><br>{options_list[0]}<br><br>
+              (B)<br><br>{options_list[1]}<br><br>
+              (C)<br><br>{options_list[2]}<br><br>
+              (D)<br><br>{options_list[3]}
             - 【重要】解析請明確指出正確答案為 ({ans_letter})。
 
             請回傳 JSON：
@@ -316,19 +316,22 @@ def run_ai_generation(is_reroll=False):
                  draw_cone(ax, L=10, r=3)
             """
         elif question_type == "統計圖表 (折線圖/圓餅圖/長條圖/直方圖)":
-            # 【終極修正 2】：強制使用 join 產生 Y軸直排字串，外加 16pt 字級
+            # 【修正 2】：全中文防呆與完美的括號直排處理
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的統計圖表題。
             {base_rules}
             請回傳 JSON：
             1. "question_text": 包含題目、選項與解析。
             2. "python_code": 必須自行宣告 fig, ax = plt.subplots()。
+               - 【⚠️ 語言禁令】：所有的圖表標題 (title)、X 軸與 Y 軸標籤、圖例，『絕對強制』使用繁體中文，嚴禁出現任何英文！
                - 【⚠️ 字體大小防呆】：所有的標題、x 軸標籤、y 軸標籤，請加上 `fontsize=16` 參數。
-               - 【⚠️ Y軸直排防呆】：為了避免字串換行引發 syntax error，若要垂直顯示 Y 軸標題，請【嚴禁用實際換行符號】！請一律使用 `label_y = '\\n'.join(list('次數(人)'))` 這種 List 轉換法產生變數，再傳入 `ax.set_ylabel(label_y, rotation=0, labelpad=20, fontsize=16)`。
+               - 【⚠️ Y軸直排防呆】：若需垂直顯示 Y 軸標籤，請在「中文字」之間手動加上 '\\n' 換行，但【括號與內部單位絕對不要拆開】！
+               - 正確範例寫法：`ax.set_ylabel('次\\n數\\n(人)', rotation=0, labelpad=20, fontsize=16)`
+               - 錯誤寫法：絕對不要用 `list()` 拆字，絕對不要把括號拆成 `(\\n人\\n)`。
                - 直方圖長條必須緊密相連 (width=組距)。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
-            # 【終極修正 1】：嚴格規定 AI 只能填數字進自訂函數，不准自己畫圖
+            # 【修正 1】：強制作答與選項連動，且不准 AI 亂加繪圖程式碼
             prompt = f"""
             請生成一道【{difficulty}】難度，主題為【{topic}】的測驗題。
             {base_rules}
@@ -336,16 +339,15 @@ def run_ai_generation(is_reroll=False):
             1. "question_text": 
                - 題目明確問：「求此不等式的解為何？」
                - 題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題！
-               - 【⚠️ 動態選項防呆】：你必須先隨機產生方程式並算出真實解答，再根據解答生成 (A)(B)(C)(D) 選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。絕對不要只輸出死板不變的選項。
+               - 【⚠️ 動態選項防呆】：你必須先隨機產生方程式並算出真實解答，再根據真實解答去生成 (A)(B)(C)(D) 選項。選項必須是純文字數學範圍（例如真實解答是 x > -2，選項可能為 (A) x > 2 (B) x > -2 (C) x < 2 (D) x < -2）。絕對不要只輸出死板不變的選項。
             2. "python_code": 
-               - 【⚠️ 絕對防呆】：你不准自己用 plot 畫線或箭頭！請務必自行宣告 fig, ax = plt.subplots(figsize=(8, 3))，並呼叫底層防呆函數 `draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_solid=False)`。參數必須帶入正確的真實解答。
-               - line_type 只能是 "向右射線", "向左射線", 或 "封閉區間"。
-               - 範例 (x > 3)：
-                 `draw_number_line(ax, "向右射線", 3, False)`
-               - 範例 (x <= -1)：
-                 `draw_number_line(ax, "向左射線", -1, True)`
-               - 範例 (-2 < x <= 4)：
-                 `draw_number_line(ax, "封閉區間", -2, False, 4, True)`
+               - 【⚠️ 絕對禁令】：你不准自己寫 plot 或 add_patch 等任何繪圖指令！
+               - 你只能「完全照抄」以下兩行程式碼，並將正確解答的參數填入函數中：
+               ```python
+               fig, ax = plt.subplots(figsize=(8, 3))
+               # 參數：ax, 圖形種類("向右射線"/"向左射線"/"封閉區間"), 起點數值, 起點是否實心(True/False), 終點數值(若無則填None), 終點是否實心(預設False)
+               draw_number_line(ax, "向右射線", 3, False)
+               ```
             """
         elif question_type == "純文字計算題 (無插圖)":
             prompt = f"""
@@ -500,7 +502,7 @@ def draw_right_angle(ax, A, D, C, size=0.5):
     p1 = D + size * u; p2 = p1 + size * v; p3 = D + size * v
     ax.plot([p1[0], p2[0], p3[0]], [p1[1], p2[1], p3[1]], 'k-', lw=1.5)
 
-# 【終極防呆 1】：完整重現老師提供的 Colab 數線程式碼精華
+# 【修正 1】：100% 移植 Colab 完美程式碼
 def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_solid=False):
     ax.clear()
     ax.spines['top'].set_visible(False)
@@ -512,10 +514,13 @@ def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_so
     y_h = 0.5
     
     if line_type == "封閉區間":
-        s, e = (start_val, end_val) if start_val <= end_val else (end_val, start_val)
-        s_inc = start_solid if start_val <= end_val else end_solid
-        e_inc = end_solid if start_val <= end_val else start_solid
-        
+        if start_val <= end_val:
+            s, e = start_val, end_val
+            s_inc, e_inc = start_solid, end_solid
+        else:
+            s, e = end_val, start_val
+            s_inc, e_inc = end_solid, start_solid
+            
         s_fc = 'black' if s_inc else 'white'
         e_fc = 'black' if e_inc else 'white'
         
@@ -549,7 +554,7 @@ def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_so
         ax.plot([s, s], [0, y_h], 'k-', lw=1.5)
         ax.annotate('', xy=(s - 5, y_h), xytext=(s, y_h), arrowprops=dict(arrowstyle='->', color='black', lw=1.5))
         ax.plot(s, 0, marker='o', markersize=8, markerfacecolor=s_fc, markeredgecolor='black', zorder=5)
-        
+
     # 補上右側數線箭頭
     x_min, x_max = ax.get_xlim()
     ax.plot(x_max, 0, marker='>', color='black', markersize=8, clip_on=False, zorder=4)
@@ -560,7 +565,6 @@ def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_so
 try:
     fig = plt.gcf()
     ax = plt.gca()
-    # 移除透明底板，確保 SVG 解散群組後可直接編輯線條
     fig.patch.set_visible(False)
     ax.patch.set_visible(False)
     plt.savefig('temp_diagram.png', bbox_inches='tight', dpi=300, transparent={transparent_bg})
@@ -656,7 +660,7 @@ if st.session_state.current_question:
     st.subheader("📋 題目原始碼 (供複製)")
     st.code(st.session_state.current_question, language='markdown')
             
-    # 【終極防呆 3】：只有 kaishow 能看到程式碼區塊
+    # 【修改 3】：只有 kaishow 能看到程式碼區塊
     if st.session_state.current_code.strip():
         if verify_code == "kaishow":
             with st.expander("👀 查看 Python 繪圖程式碼"):
