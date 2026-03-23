@@ -77,7 +77,8 @@ show_equation = True
 # =======================================================
 with st.sidebar:
     st.header("⚙️ 系統設定")
-    user_input_key = st.text_input("🔑 請輸入 Google API Key", type="password", value=st.session_state.api_key)
+    # ✅ 修改1：加上 Google API Key 超連結
+    user_input_key = st.text_input("🔑 請輸入 [Google AI API Key](https://aistudio.google.com/app/api-keys)", type="password", value=st.session_state.api_key)
     
     # 雙驗證碼防護機制
     verify_code = st.text_input("🔒 請輸入系統驗證碼", type="password")
@@ -327,7 +328,6 @@ def run_ai_generation(is_reroll=False):
                - 直方圖長條必須緊密相連 (width=組距)。
             """
         elif question_type == "一元一次不等式圖解 (數線)":
-            # 【終極動態防呆】：偵測到關鍵字直接強制 AI 出雙邊不等式
             force_closed = "封閉" in topic or "範圍" in topic or "雙邊" in topic
             closed_rule = "- 【⚠️ 封閉區間絕對強制令】：使用者已指定封閉區間！你【絕對強制】必須設計一道「連立不等式」或「雙邊連續不等式」(例如 $-5 \le 2x - 3 < 7$)，解答必須是介於兩個數字之間的範圍 (例如 $-1 \le x < 5$)，絕對不准出單向不等式！" if force_closed else "- 題型必須涵蓋「單向不等式」(如 $x > 3$) 與「封閉範圍不等式」(如 $-2 < x \\le 4$)，請隨機出題，增加變化性！"
 
@@ -356,12 +356,47 @@ def run_ai_generation(is_reroll=False):
             1. "question_text": 包含題目、四個選項與詳解。
             2. "python_code": 回傳空字串 ""。
             """
+        # ✅ 修改3：注入完整的會考非選題 Prompt 模板
         elif question_type == "會考非選素養題 (情境+兩小題)":
             prompt = f"""
-            任務說明：請根據指定的概念【{topic}】，設計一道符合台灣國中教育會考風格的非選擇題。
+            你是專業的台灣國中教育會考數學科出題老師。請根據指定的核心數學概念：【{topic}】，設計一道符合教育會考風格的非選擇題。
+            
             {base_rules}
+            
+            【出題核心特徵與規範】
+            1. 情境設計原則
+               - 完整生活場景鋪陳：5行以上的文字描述，建立完整故事背景。
+               - 時事元素融入：結合當前熱門話題、科技趨勢或社會現象。
+               - 自然融入數學：數學問題從情境中自然浮現，不突兀。
+               - 素養導向：連結真實生活應用，有實際操作意義。
+               - 語句自然流暢：像在講述一個小故事或描述一個現象，避免制式化表達。
+               
+            2. 題目結構 (固定兩小題設計)
+               - 第一小題：考核心概念理解或基本應用。需要思考但不會過於複雜，避免過於直接的問法(如直接問邊長)。答案必須是整數，避免複雜小數計算。
+               - 第二小題：具有挑戰性的應用題。需要3-4個步驟的思考或計算，結合多個數學概念或實際應用情境，但不會超出國中課程範圍。
+               
+            3. 解題自由度設計
+               - 絕對不預設變數：不寫「設x為...」「設y為...」。
+               - 不直接提示解法：不說「請列不等式」「請用畢氏定理」。
+               - 開放多元解法與間接問法：問「關係如何」「最多幾個」「面積為多少」，而非「列出算式」。
+               - 自主判斷：讓學生自己決定用什麼數學方法。
+               
+            4. 難度控制標準
+               - 第一題適中挑戰：需要理解概念＋簡單推理，不能太直接，答案為整數。
+               - 第二題高層次：需要多步驟思考，涉及複合概念應用，考驗綜合能力。
+               - 避免過簡或超綱：不使用高中才學的概念(如餘弦定理)。
+               
+            【語言風格要求】
+               - 台灣在地化：使用台灣學生熟悉的用語和表達方式。
+               - 生活化表達：自然流暢，長短句交錯。
+
             請嚴格回傳 JSON 格式：
-            1. "question_text": 包含 Markdown 標題段落：### 題目情境與問題、### 自我檢核清單、### 簡要解答與評分指引。
+            1. "question_text": 內容必須包含以下 Markdown 標題段落：
+               ### 題目情境與問題
+               (請在此撰寫豐富生動的5行以上情境描述與兩小題)
+               ### 自我檢核清單
+               (請依據上述規範，列出打勾的檢核清單)
+               ### 簡要解答與評分指引
             2. "python_code": 回傳空字串 ""。
             """
 
@@ -431,7 +466,6 @@ def setup_chinese_font():
                         
 setup_chinese_font()
 
-# 【終極防呆】：Y軸文字完美直排，自動綁定單位括號，徹底解決字串報錯
 def set_vertical_ylabel(ax, text):
     res = []
     temp = ""
@@ -578,7 +612,6 @@ def draw_number_line(ax, line_type, start_val, start_solid, end_val=None, end_so
     ax.set_ylim(-0.5, 1)
 """
                 cleanup_code = f"""
-# ====== 系統自動存檔與記憶體釋放接管 ======
 try:
     fig = plt.gcf()
     ax = plt.gca()
@@ -611,10 +644,20 @@ finally:
             
             st.success("✅ 題目生成完畢！")
 
+        # ✅ 修改2：將 Traceback 藏進 print()，並加上友善的使用者提示
         except json.JSONDecodeError as je:
-            st.error(f"❌ JSON 格式解析失敗！請再點一次生成按鈕。細節: {je}")
+            print(f"[系統日誌] JSON 格式解析失敗: {je}")
+            st.error("❌ 哎呀！AI 剛才不小心把格式弄亂了，請再點一次「產生新題目」按鈕試試看！")
         except Exception as e:
-            st.error(f"❌ 發生錯誤。錯誤訊息: {e}")
+            error_msg = str(e)
+            print(f"[系統日誌] 發生錯誤: {error_msg}")
+            
+            if "API key not valid" in error_msg or "API_KEY_INVALID" in error_msg or "400" in error_msg:
+                st.error("🔑 哎呀！您輸入的 API 金鑰好像無效或是打錯了，請點擊左側連結重新申請或檢查一下喔！")
+            elif "RESOURCE_EXHAUSTED" in error_msg or "429" in error_msg or "quota" in error_msg.lower():
+                st.error("😭 你的免費 API 額度用完了 QQ，換一個 Google 帳號申請新的金鑰試試看吧！")
+            else:
+                st.error("❌ 系統遇到了一點小麻煩，請稍後再試！(詳細錯誤已記錄於後台)")
 
 # =======================================================
 # 綁定按鈕動作
