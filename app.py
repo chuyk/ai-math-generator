@@ -660,9 +660,17 @@ finally:
         except json.JSONDecodeError as je:
             print(f"[系統日誌] JSON 格式解析失敗: {je}")
             st.error("❌ 哎呀！AI 剛才不小心把格式弄亂了，請再點一次「產生新題目」按鈕試試看！")
+            # 開發者模式：印出 JSON 解析失敗的原始回應與詳細錯誤
+            if verify_code == "kaishow":
+                st.error(f"🔍 [開發者除錯] JSON 解析錯誤細節：{je}")
+                if 'response' in locals() and hasattr(response, 'text'):
+                     st.text_area("📦 AI 原始回傳內容 (未解析)：", value=response.text, height=300)
+
         except Exception as e:
             error_msg = str(e)
             print(f"[系統日誌] 發生錯誤: {error_msg}")
+            import traceback
+            full_traceback = traceback.format_exc()
             
             if "API key not valid" in error_msg or "API_KEY_INVALID" in error_msg or "400" in error_msg:
                 st.error("🔑 哎呀！您輸入的 API 金鑰好像無效或是打錯了，請點擊左側連結重新申請或檢查一下喔！")
@@ -670,6 +678,11 @@ finally:
                 st.error("😭 你的免費 API 額度用完了 QQ，換一個 Google 帳號申請新的金鑰試試看吧！")
             else:
                 st.error("❌ 系統遇到了一點小麻煩，請稍後再試！(詳細錯誤已記錄於後台)")
+                
+            # 開發者模式：直接在網頁上印出最真實的錯誤堆疊 (Traceback)
+            if verify_code == "kaishow":
+                st.error("🔍 [開發者除錯] 詳細錯誤堆疊：")
+                st.code(full_traceback, language="python")
 
 # =======================================================
 # 綁定按鈕動作
