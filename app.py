@@ -678,7 +678,7 @@ finally:
             elif "RESOURCE_EXHAUSTED" in error_msg or "429" in error_msg or "quota" in error_msg.lower():
                 st.error("😭 你的免費 API 額度用完了 QQ，換一個 Google 帳號申請新的金鑰試試看吧！")
             elif "503" in error_msg or "UNAVAILABLE" in error_msg:
-                st.error("🚦 目前 Google AI 伺服器大塞車 (Error 503)！請稍等幾分鐘後再試，或先切換成 Gemma 模型喔！")
+                st.error("🚦 目前 Google AI 伺服器大塞車 (Error 503)！請稍等幾分鐘後再試，或先切換成其它 AI 模型喔！")
             else:
                 st.error("❌ 系統遇到了一點小麻煩，請稍後再試！(詳細錯誤已記錄於後台)")
                 
