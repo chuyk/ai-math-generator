@@ -672,12 +672,15 @@ finally:
             import traceback
             full_traceback = traceback.format_exc()
             
-            if "API key not valid" in error_msg or "API_KEY_INVALID" in error_msg or "400" in error_msg:
-                st.error("🔑 哎呀！您輸入的 API 金鑰好像無效或是打錯了，請點擊左側連結重新申請或檢查一下喔！")
-            elif "RESOURCE_EXHAUSTED" in error_msg or "429" in error_msg or "quota" in error_msg.lower():
-                st.error("😭 你的免費 API 額度用完了 QQ，換一個 Google 帳號申請新的金鑰試試看吧！")
-            else:
-                st.error("❌ 系統遇到了一點小麻煩，請稍後再試！(詳細錯誤已記錄於後台)")
+		if "API key not valid" in error_msg or "API_KEY_INVALID" in error_msg or "400" in error_msg:
+			st.error("🔑 哎呀！您輸入的 API 金鑰好像無效或是打錯了，請點擊左側連結重新申請或檢查一下喔！")
+		elif "RESOURCE_EXHAUSTED" in error_msg or "429" in error_msg or "quota" in error_msg.lower():
+			st.error("😭 你的免費 API 額度用完了 QQ，換一個 Google 帳號申請新的金鑰試試看吧！")
+		elif "503" in error_msg or "UNAVAILABLE" in error_msg:
+			# 👇 新增這段來捕捉伺服器塞車
+			st.error("🚦 目前 Google AI 伺服器大塞車 (Error 503)！請稍等幾分鐘後再試，或先切換成 Gemma 模型喔！")
+		else:
+			st.error("❌ 系統遇到了一點小麻煩，請稍後再試！(詳細錯誤已記錄於後台)")
                 
             # 開發者模式：直接在網頁上印出最真實的錯誤堆疊 (Traceback)
             if verify_code == "kaishow":
