@@ -97,6 +97,7 @@ with st.sidebar:
     st.header("🤖 AI 模型設定")
     model_mapping = {
         "Gemini 3.1 Flash-Lite": "gemini-3.1-flash-lite-preview",
+        "Gemini 3 Flash": "gemini-3-flash-preview",
         "Gemma 4 31B": "gemma-4-31b-it",
         "Gemma 4 26B A4B": "gemma-4-26b-a4b-it"
     }
