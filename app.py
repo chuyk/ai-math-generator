@@ -92,6 +92,18 @@ with st.sidebar:
         
     st.markdown("*(您的 API Key 僅於本次連線暫存，關閉網頁即自動銷毀，絕對安全)*")
     st.markdown("---")
+    
+    # 新增 AI 模型選擇區塊
+    st.header("🤖 AI 模型設定")
+    model_mapping = {
+        "Gemini 3.1 Flash-Lite": "gemini-3.1-flash-lite-preview",
+        "Gemma 4 31B": "gemma-4-31b-it",
+        "Gemma 4 26B A4B": "gemma-4-26b-a4b-it"
+    }
+    selected_model_display = st.selectbox("選擇 AI 模型", options=list(model_mapping.keys()), index=0)
+    selected_model = model_mapping[selected_model_display]
+    
+    st.markdown("---")
     st.header("🎚️ 題目參數設定")
     difficulty = st.select_slider("難度級別", options=["基礎概念", "標準段考", "進階挑戰"], value="標準段考")
     
@@ -403,7 +415,7 @@ def run_ai_generation(is_reroll=False):
     with st.spinner("AI 正在雲端運算與製圖中... (這可能需要 5-10 秒)"):
         try:
             response = client.models.generate_content(
-                model="gemini-3.1-flash-lite-preview",
+                model=selected_model,
                 contents=prompt,
                 config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
             )
