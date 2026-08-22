@@ -100,8 +100,8 @@ with st.sidebar:
         "gemini-3.5-flash": "gemini-3.5-flash",
         "gemini-3.5-flash-lite": "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite": "gemini-3.1-flash-lite",
-        "Gemma 4 31B": "gemma-4-31B-it",
-        "Gemma 4 26B A4B": "gemma-4-26B-A4B-it"
+        "Gemma 4 31B": "gemma-4-31b-it",
+        "Gemma 4 26B A4B": "gemma-4-26b-a4b-it"
     }
     selected_model_display = st.selectbox("選擇 AI 模型", options=list(model_mapping.keys()), index=0)
     selected_model = model_mapping[selected_model_display]
