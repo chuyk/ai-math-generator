@@ -96,6 +96,7 @@ with st.sidebar:
     # 新增 AI 模型選擇區塊
     st.header("🤖 AI 模型設定")
     model_mapping = {
+        "gemini-3.7-flash": "gemini-3.7-flash",
         "gemini-3.6-flash": "gemini-3.6-flash",
         "gemini-3.5-flash": "gemini-3.5-flash",
         "gemini-3.5-flash-lite": "gemini-3.5-flash-lite",
